@@ -1,0 +1,775 @@
+/* MechanicDetailPage.css - Dark Automotive Premium Theme */
+
+.mechanic-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+/* Top Nav / Breadcrumbs */
+.detail-top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: color var(--transition-fast);
+}
+
+.back-link:hover {
+  color: var(--accent-primary);
+}
+
+.emergency-linked-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #fca5a5;
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--radius-full);
+}
+
+.sos-chip-icon {
+  color: var(--accent-primary);
+}
+
+/* Layout Grid */
+.detail-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 1.75rem;
+  align-items: start;
+}
+
+/* Main Column */
+.detail-main-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Profile Hero Card */
+.profile-hero-card {
+  background: linear-gradient(135deg, var(--bg-card) 0%, #171b23 100%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  display: flex;
+  gap: 1.75rem;
+  align-items: flex-start;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-hero-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--accent-primary);
+}
+
+.hero-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.hero-avatar-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%);
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #ffffff;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+}
+
+.avatar-badge-status {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-badge-status.available {
+  background-color: var(--success);
+}
+
+.avatar-badge-status.busy {
+  background-color: var(--text-muted);
+}
+
+.badge-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #ffffff;
+}
+
+.hero-info-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hero-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+}
+
+.status-available {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: var(--success);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.status-busy {
+  background-color: rgba(156, 163, 175, 0.15);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.status-dot.green {
+  background-color: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+.status-dot.gray {
+  background-color: var(--text-muted);
+}
+
+.distance-pill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+}
+
+.hero-mechanic-name {
+  font-size: 1.875rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.hero-workshop-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.workshop-wrench {
+  color: var(--accent-primary);
+}
+
+.hero-location-text {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  color: #93c5fd;
+}
+
+.hero-rating-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.rating-stars-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.star-filled {
+  color: #fbbf24;
+  fill: #fbbf24;
+}
+
+.star-empty {
+  color: var(--border-color-hover);
+}
+
+.rating-score-bold {
+  font-weight: 800;
+  color: #f3f4f6;
+}
+
+.rating-reviews-label {
+  color: var(--text-muted);
+}
+
+.hero-specialization-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  background-color: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-sm);
+  margin-top: 0.25rem;
+  align-self: flex-start;
+}
+
+/* Detail Content Cards */
+.detail-content-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.card-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid rgba(48, 54, 65, 0.7);
+}
+
+.heading-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background-color: var(--accent-primary-light);
+  color: var(--accent-primary);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.section-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.section-subtitle {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+/* About Paragraph */
+.mechanic-about-paragraph {
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.experience-highlight-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  align-self: flex-start;
+}
+
+.experience-highlight-pill .pill-icon {
+  color: var(--accent-primary);
+}
+
+/* Services Offered Grid */
+.services-list-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.service-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  transition: border-color var(--transition-fast);
+}
+
+.service-detail-item:hover {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.service-detail-item .check-icon {
+  color: var(--success);
+  flex-shrink: 0;
+}
+
+/* Service Charges Table */
+.charges-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.charges-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.charges-table th {
+  background-color: var(--bg-secondary);
+  padding: 0.875rem 1.25rem;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.charges-table td {
+  padding: 0.875rem 1.25rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid rgba(48, 54, 65, 0.5);
+  color: var(--text-primary);
+}
+
+.charges-table tr:last-child td {
+  border-bottom: none;
+}
+
+.charges-table tr:hover td {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.charge-service-name {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.service-bullet {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--accent-primary);
+}
+
+.charge-price-range {
+  font-weight: 700;
+  color: #86efac;
+}
+
+.charges-disclaimer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+/* Reviews List */
+.reviews-heading {
+  justify-content: space-between;
+}
+
+.overall-score-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  background-color: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.review-card-item {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.15rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.reviewer-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.reviewer-meta {
+  flex: 1;
+}
+
+.reviewer-name {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.review-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.review-stars-wrap {
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+.review-comment {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+/* Sidebar Column */
+.detail-sidebar-column {
+  position: relative;
+}
+
+.sticky-sidebar-container {
+  position: sticky;
+  top: 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.sidebar-action-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+/* Request Box */
+.request-box {
+  background: linear-gradient(145deg, var(--bg-card) 0%, #1c2331 100%);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.card-kicker {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--accent-primary);
+  text-transform: uppercase;
+}
+
+.visit-charge-display {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+}
+
+.visit-fee-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.fee-big-amount {
+  font-size: 1.875rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.charge-subnote {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 0.25rem;
+}
+
+.action-buttons-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.btn-request-large {
+  padding: 0.875rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.35);
+}
+
+.btn-request-large:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+}
+
+.btn-back-large {
+  width: 100%;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+}
+
+.disabled-btn {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.guarantee-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  color: #86efac;
+}
+
+.guarantee-icon {
+  color: var(--success);
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+/* Availability & Response Box */
+.action-box-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.75rem;
+}
+
+.info-attribute-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.attribute-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.attr-icon {
+  color: var(--accent-secondary);
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.attr-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.attr-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.attr-value {
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Contact Details Box */
+.contact-details-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.contact-detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.contact-icon {
+  color: var(--accent-primary);
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.contact-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: block;
+}
+
+.contact-val {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.demo-notice {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Not Found View */
+.mechanic-not-found-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 4rem 2rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  max-width: 600px;
+  margin: 2rem auto;
+}
+
+.not-found-icon-wrap {
+  color: var(--accent-primary);
+}
+
+.not-found-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.not-found-text {
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .detail-layout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sticky-sidebar-container {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .profile-hero-card {
+    flex-direction: column;
+    padding: 1.5rem;
+    gap: 1.25rem;
+  }
+
+  .services-list-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-content-card {
+    padding: 1.25rem;
+  }
+}
