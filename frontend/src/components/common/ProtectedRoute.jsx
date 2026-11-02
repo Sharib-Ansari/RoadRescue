@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
 
@@ -28,6 +28,22 @@ const ProtectedRoute = ({ children }) => {
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Role validation if allowedRoles is specified
+  if (allowedRoles && allowedRoles.length > 0) {
+    const userRole = (user.role || user.accountType || 'customer').toLowerCase();
+    const hasPermission = allowedRoles.some(
+      (role) => role.toLowerCase() === userRole
+    );
+
+    if (!hasPermission) {
+      // Redirect users to their respective home dashboard
+      if (userRole === 'mechanic') {
+        return <Navigate to="/mechanic/dashboard" replace />;
+      }
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return children;

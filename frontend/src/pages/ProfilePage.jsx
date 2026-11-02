@@ -12,14 +12,19 @@ import {
   Lock
 } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout';
+import MechanicDashboardLayout from '../layouts/MechanicDashboardLayout';
 import { useAuth } from '../context/AuthContext';
 import { getInitials, formatDate } from '../utils/helpers';
 
 const ProfilePage = () => {
   const { user, updateUser } = useAuth();
+  const isMechanic = (user?.role || user?.accountType) === 'mechanic';
 
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
+  const [workshopName, setWorkshopName] = useState(user?.workshopName || '');
+  const [serviceArea, setServiceArea] = useState(user?.serviceArea || '');
+  const [experienceYears, setExperienceYears] = useState(user?.experienceYears || '');
   const [emergencyContactName, setEmergencyContactName] = useState(user?.emergencyContactName || 'Sunita Sharma');
   const [emergencyContactPhone, setEmergencyContactPhone] = useState(user?.emergencyContactPhone || '+91 98111 55667');
   const [smsAlerts, setSmsAlerts] = useState(true);
@@ -31,6 +36,9 @@ const ProfilePage = () => {
     updateUser({
       name,
       phone,
+      workshopName,
+      serviceArea,
+      experienceYears,
       emergencyContactName,
       emergencyContactPhone,
       smsAlerts,
@@ -40,8 +48,10 @@ const ProfilePage = () => {
     setTimeout(() => setSavedSuccess(false), 3000);
   };
 
+  const Layout = isMechanic ? MechanicDashboardLayout : DashboardLayout;
+
   return (
-    <DashboardLayout title="My Profile">
+    <Layout title={isMechanic ? "Mechanic Profile" : "My Profile"}>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         <div style={{ marginBottom: '2rem' }}>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Account & Safety Profile</h1>
@@ -228,7 +238,7 @@ const ProfilePage = () => {
           </div>
         </form>
       </div>
-    </DashboardLayout>
+    </Layout>
   );
 };
 

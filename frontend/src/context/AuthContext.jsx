@@ -44,7 +44,7 @@ export const AuthProvider = ({ children }) => {
       const userData = DEMO_CREDENTIALS.user;
       storage.set(STORAGE_KEYS.USER, userData);
       setUser(userData);
-      return { success: true };
+      return { success: true, user: userData };
     }
 
     // Check demo mechanic credentials
@@ -52,7 +52,7 @@ export const AuthProvider = ({ children }) => {
       const userData = DEMO_CREDENTIALS.mechanicUser;
       storage.set(STORAGE_KEYS.USER, userData);
       setUser(userData);
-      return { success: true };
+      return { success: true, user: userData };
     }
 
     // Check registered users list or last saved user
@@ -64,13 +64,13 @@ export const AuthProvider = ({ children }) => {
       const { password: _, ...userWithoutPass } = foundUser;
       storage.set(STORAGE_KEYS.USER, userWithoutPass);
       setUser(userWithoutPass);
-      return { success: true };
+      return { success: true, user: userWithoutPass };
     }
 
     const savedUser = storage.get(STORAGE_KEYS.USER);
     if (savedUser && savedUser.email && savedUser.email.toLowerCase() === email.toLowerCase()) {
       setUser(savedUser);
-      return { success: true };
+      return { success: true, user: savedUser };
     }
 
     return { 
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = (userData) => {
-    const role = userData.accountType || userData.role || 'customer';
+    const role = (userData.role || userData.accountType || 'customer').toLowerCase();
     const newUser = {
       id: `usr_${Date.now()}`,
       name: userData.name || userData.fullName || 'User',
@@ -88,6 +88,11 @@ export const AuthProvider = ({ children }) => {
       phone: userData.phone,
       accountType: role,
       role: role,
+      // Mechanic specific profile fields
+      workshopName: userData.workshopName || '',
+      servicesOffered: userData.servicesOffered || [],
+      experienceYears: userData.experienceYears || '',
+      serviceArea: userData.serviceArea || '',
       joinDate: new Date().toISOString()
     };
 
@@ -98,7 +103,7 @@ export const AuthProvider = ({ children }) => {
 
     storage.set(STORAGE_KEYS.USER, newUser);
     setUser(newUser);
-    return { success: true };
+    return { success: true, user: newUser };
   };
 
   const logout = () => {

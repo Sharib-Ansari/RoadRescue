@@ -173,7 +173,7 @@ export default function NotFoundPage() {
 
           {isAuthenticated ? (
             <Link
-              to="/dashboard"
+              to={(user?.role || user?.accountType) === 'mechanic' ? '/mechanic/dashboard' : '/dashboard'}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',

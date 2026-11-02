@@ -31,7 +31,12 @@ export default function RegisterPage() {
     password: '',
     confirmPassword: '',
     role: 'customer', // 'customer' or 'mechanic'
-    agreeTerms: false
+    agreeTerms: false,
+    // Mechanic-specific fields
+    workshopName: '',
+    servicesOffered: ['Engine Repair', 'Tyre Service'],
+    experienceYears: '',
+    serviceArea: ''
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -52,6 +57,19 @@ export default function RegisterPage() {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
     if (authError) setAuthError('');
+  };
+
+  const handleServiceToggle = (service) => {
+    setFormData((prev) => {
+      const current = prev.servicesOffered || [];
+      const updated = current.includes(service)
+        ? current.filter((s) => s !== service)
+        : [...current, service];
+      return { ...prev, servicesOffered: updated };
+    });
+    if (errors.servicesOffered) {
+      setErrors((prev) => ({ ...prev, servicesOffered: '' }));
+    }
   };
 
   const handleRoleSelect = (role) => {
@@ -98,6 +116,22 @@ export default function RegisterPage() {
       newErrors.confirmPassword = 'Passwords do not match';
     }
 
+    // Mechanic specific validation
+    if (formData.role === 'mechanic') {
+      if (!formData.workshopName.trim()) {
+        newErrors.workshopName = 'Workshop or business name is required';
+      }
+      if (!formData.experienceYears || Number(formData.experienceYears) < 0) {
+        newErrors.experienceYears = 'Valid years of experience is required';
+      }
+      if (!formData.serviceArea.trim()) {
+        newErrors.serviceArea = 'Primary service area/city is required';
+      }
+      if (!formData.servicesOffered || formData.servicesOffered.length === 0) {
+        newErrors.servicesOffered = 'Select at least one service offered';
+      }
+    }
+
     // Terms agreement
     if (!formData.agreeTerms) {
       newErrors.agreeTerms = 'You must accept the Terms of Service & Privacy Policy';
@@ -118,30 +152,38 @@ export default function RegisterPage() {
       // Simulate network request
       await new Promise((resolve) => setTimeout(resolve, 800));
 
+      const payload = {
+        name: formData.fullName,
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        accountType: formData.role,
+        role: formData.role,
+        workshopName: formData.workshopName,
+        servicesOffered: formData.servicesOffered,
+        experienceYears: formData.experienceYears,
+        serviceArea: formData.serviceArea
+      };
+
       if (register) {
-        await register({
-          name: formData.fullName,
-          fullName: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          accountType: formData.role,
-          role: formData.role
-        });
+        await register(payload);
       } else {
         localStorage.setItem(
           'roadrescue_user',
           JSON.stringify({
             id: 'usr_' + Date.now(),
-            name: formData.fullName,
-            email: formData.email,
-            phone: formData.phone,
-            role: formData.role,
-            accountType: formData.role
+            ...payload
           })
         );
       }
 
-      navigate('/dashboard');
+      // Role-based navigation
+      if (formData.role === 'mechanic') {
+        navigate('/mechanic/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setAuthError(err.message || 'Failed to create account. Please try again.');
     } finally {
@@ -383,6 +425,141 @@ export default function RegisterPage() {
               </div>
               {errors.phone && <span className="auth-inline-error">{errors.phone}</span>}
             </div>
+
+            {/* -----------------------------------------------------
+                SECTION 1.5: MECHANIC WORKSHOP DETAILS (Only if role === 'mechanic')
+               ----------------------------------------------------- */}
+            {formData.role === 'mechanic' && (
+              <>
+                <div className="auth-section-title">
+                  <span>Workshop & Business Details</span>
+                </div>
+
+                {/* Workshop Name */}
+                <div className="auth-field-group">
+                  <label htmlFor="reg-workshop" className="auth-label">
+                    Workshop / Business Name
+                  </label>
+                  <div className={`auth-input-wrapper ${errors.workshopName ? 'input-error' : ''}`}>
+                    <Wrench size={18} className="field-icon" />
+                    <input
+                      id="reg-workshop"
+                      type="text"
+                      name="workshopName"
+                      value={formData.workshopName}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Apex Auto Care & Recovery"
+                      className="auth-input"
+                      required
+                    />
+                  </div>
+                  {errors.workshopName && <span className="auth-inline-error">{errors.workshopName}</span>}
+                </div>
+
+                {/* Experience & Service Area Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="auth-field-group">
+                    <label htmlFor="reg-exp" className="auth-label">
+                      Years of Experience
+                    </label>
+                    <div className={`auth-input-wrapper ${errors.experienceYears ? 'input-error' : ''}`}>
+                      <input
+                        id="reg-exp"
+                        type="number"
+                        name="experienceYears"
+                        min="0"
+                        max="50"
+                        value={formData.experienceYears}
+                        onChange={handleInputChange}
+                        placeholder="e.g. 8"
+                        className="auth-input"
+                        style={{ paddingLeft: '0.85rem' }}
+                        required
+                      />
+                    </div>
+                    {errors.experienceYears && <span className="auth-inline-error">{errors.experienceYears}</span>}
+                  </div>
+
+                  <div className="auth-field-group">
+                    <label htmlFor="reg-area" className="auth-label">
+                      Primary Service Area / City
+                    </label>
+                    <div className={`auth-input-wrapper ${errors.serviceArea ? 'input-error' : ''}`}>
+                      <MapPin size={18} className="field-icon" />
+                      <input
+                        id="reg-area"
+                        type="text"
+                        name="serviceArea"
+                        value={formData.serviceArea}
+                        onChange={handleInputChange}
+                        placeholder="e.g. South Delhi / Gurgaon"
+                        className="auth-input"
+                        required
+                      />
+                    </div>
+                    {errors.serviceArea && <span className="auth-inline-error">{errors.serviceArea}</span>}
+                  </div>
+                </div>
+
+                {/* Services Offered Selection */}
+                <div className="auth-field-group">
+                  <label className="auth-label">Services Offered (Select all that apply)</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem', marginTop: '0.35rem' }}>
+                    {[
+                      'Engine Repair',
+                      'Tyre Service',
+                      'Battery Jumpstart',
+                      'Brake Service',
+                      'Vehicle Towing',
+                      'Electrical Diagnostics',
+                      'Fuel Delivery',
+                      'Clutch & Transmission'
+                    ].map((service) => {
+                      const isSelected = formData.servicesOffered?.includes(service);
+                      return (
+                        <div
+                          key={service}
+                          onClick={() => handleServiceToggle(service)}
+                          style={{
+                            padding: '0.5rem 0.65rem',
+                            borderRadius: '8px',
+                            border: `1px solid ${isSelected ? 'var(--accent-primary, #EF4444)' : 'var(--border-color, #303641)'}`,
+                            backgroundColor: isSelected ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-input, #151820)',
+                            color: isSelected ? '#FFFFFF' : 'var(--text-secondary, #9CA3AF)',
+                            fontSize: '0.78rem',
+                            fontWeight: isSelected ? 600 : 400,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: '14px',
+                              height: '14px',
+                              borderRadius: '4px',
+                              border: `1px solid ${isSelected ? '#EF4444' : '#6B7280'}`,
+                              backgroundColor: isSelected ? '#EF4444' : 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#fff',
+                              fontSize: '10px'
+                            }}
+                          >
+                            {isSelected && '✓'}
+                          </div>
+                          <span>{service}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {errors.servicesOffered && <span className="auth-inline-error">{errors.servicesOffered}</span>}
+                </div>
+              </>
+            )}
 
             {/* -----------------------------------------------------
                 SECTION 2: ACCOUNT SECURITY

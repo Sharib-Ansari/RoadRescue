@@ -1,0 +1,145 @@
+/* Mechanic Dashboard Layout Styling */
+
+.mechanic-layout .mechanic-brand-icon {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(59, 130, 246, 0.05));
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: var(--accent-secondary, #3B82F6);
+}
+
+.brand-portal-tag {
+  display: block;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  color: var(--accent-secondary, #3B82F6);
+  font-weight: 800;
+  margin-top: 1px;
+}
+
+.mech-sidebar-status {
+  margin: 0.75rem 0.85rem 0.25rem 0.85rem;
+  padding: 0.85rem 1rem;
+  background-color: var(--bg-card, #1C2028);
+  border: 1px solid var(--border-color, #303641);
+  border-radius: var(--radius-md, 10px);
+}
+
+.mech-status-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted, #9CA3AF);
+}
+
+.mech-status-toggle-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mech-status-text {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.mech-status-text.online {
+  color: var(--success, #22C55E);
+}
+
+.mech-status-text.offline {
+  color: var(--text-muted, #6B7280);
+}
+
+.status-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-indicator-dot.online {
+  background-color: var(--success, #22C55E);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.7);
+  animation: pulseGreenDot 2s infinite;
+}
+
+.status-indicator-dot.offline {
+  background-color: #6B7280;
+}
+
+@keyframes pulseGreenDot {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+.mech-live-ping {
+  color: var(--success, #22C55E);
+  animation: pulseGreenDot 1.5s infinite;
+}
+
+/* Custom Toggle Switch */
+.mech-toggle-btn {
+  width: 44px;
+  height: 24px;
+  border-radius: 9999px;
+  background-color: #282E3D;
+  border: 1px solid var(--border-color, #303641);
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+  padding: 2px;
+}
+
+.mech-toggle-btn.on {
+  background-color: rgba(34, 197, 94, 0.25);
+  border-color: var(--success, #22C55E);
+}
+
+.mech-toggle-handle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: #9CA3AF;
+  display: block;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s ease;
+}
+
+.mech-toggle-btn.on .mech-toggle-handle {
+  transform: translateX(20px);
+  background-color: var(--success, #22C55E);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+}
+
+/* Header Status Pill */
+.header-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  border: 1px solid var(--border-color, #303641);
+  background-color: var(--bg-card, #1C2028);
+}
+
+.header-status-pill.online {
+  color: var(--success, #22C55E);
+  border-color: rgba(34, 197, 94, 0.3);
+  background-color: rgba(34, 197, 94, 0.08);
+}
+
+.header-status-pill.offline {
+  color: var(--text-muted, #9CA3AF);
+  border-color: var(--border-color, #303641);
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.user-avatar.mechanic-avatar {
+  background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+}

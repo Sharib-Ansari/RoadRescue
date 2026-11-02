@@ -8,6 +8,7 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
+import MechanicDashboardPage from './pages/MechanicDashboardPage';
 import VehiclesPage from './pages/VehiclesPage';
 import EmergencyPage from './pages/EmergencyPage';
 import MechanicsPage from './pages/MechanicsPage';
@@ -27,11 +28,21 @@ function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              {/* Customer Dashboard - Protected for Customers only */}
               <Route
                 path="/dashboard"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={['customer']}>
                     <DashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              {/* Mechanic Dashboard - Protected for Mechanics only */}
+              <Route
+                path="/mechanic/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['mechanic']}>
+                    <MechanicDashboardPage />
                   </ProtectedRoute>
                 }
               />

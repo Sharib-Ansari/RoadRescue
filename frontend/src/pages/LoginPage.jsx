@@ -110,6 +110,7 @@ export default function LoginPage() {
       // Simulate 800ms authentication delay for realistic feedback
       await new Promise((resolve) => setTimeout(resolve, 800));
 
+      let targetRoute = '/dashboard';
       if (login) {
         const res = login(formData.email.trim(), formData.password);
         if (res && res.success === false) {
@@ -117,9 +118,14 @@ export default function LoginPage() {
           setIsLoading(false);
           return;
         }
+        const loggedUser = res?.user || JSON.parse(localStorage.getItem('roadrescue_user') || '{}');
+        const role = (loggedUser?.role || loggedUser?.accountType || '').toLowerCase();
+        if (role === 'mechanic') {
+          targetRoute = '/mechanic/dashboard';
+        }
       }
 
-      navigate('/dashboard');
+      navigate(targetRoute);
     } catch (err) {
       setAuthError(err.message || 'Failed to sign in. Please check your credentials.');
     } finally {

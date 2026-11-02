@@ -22,10 +22,9 @@ import { formatDate, formatCurrency } from '../utils/helpers';
 const DashboardPage = () => {
   const { user } = useAuth();
   const { vehicles, selectedVehicle } = useVehicles();
-  const isMechanic = user?.accountType === 'mechanic' || user?.role === 'mechanic';
 
   return (
-    <DashboardLayout title={isMechanic ? 'Mechanic Partner Dashboard' : 'Dashboard'}>
+    <DashboardLayout title="Dashboard">
       {/* Welcome Banner */}
       <div
         style={{
@@ -43,25 +42,23 @@ const DashboardPage = () => {
       >
         <div>
           <div className="badge badge-info" style={{ marginBottom: '0.5rem' }}>
-            <ShieldCheck size={14} /> {isMechanic ? '🔧 Certified Mechanic Partner' : 'Active Roadside Protection'}
+            <ShieldCheck size={14} /> Active Roadside Protection
           </div>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.35rem' }}>
-            Hello, {user?.name || (isMechanic ? 'Partner' : 'Driver')}! 👋
+            Hello, {user?.name || 'Driver'}! 👋
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem' }}>
-            {isMechanic
-              ? 'Your mobile workshop is live on the RoadRescue dispatch grid.'
-              : 'Your roadside emergency network is active and ready 24/7.'}
+            Your roadside emergency network is active and ready 24/7.
           </p>
         </div>
 
         <Link
-          to={isMechanic ? "/mechanics" : "/emergency"}
-          className={`btn ${isMechanic ? 'btn-primary' : 'btn-danger'} btn-lg`}
+          to="/emergency"
+          className="btn btn-danger btn-lg"
           style={{ boxShadow: 'var(--shadow-glow)' }}
         >
-          {isMechanic ? <Wrench size={20} /> : <AlertTriangle size={20} />}
-          {isMechanic ? 'Nearby Service Requests' : 'Emergency SOS'}
+          <AlertTriangle size={20} />
+          Emergency SOS
         </Link>
       </div>
 
