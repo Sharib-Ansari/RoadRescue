@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { storage, STORAGE_KEYS } from '../utils/storage';
+import authApi from '../utils/api';
 
 const DEMO_CREDENTIALS = {
   email: 'demo@roadrescue.in',
@@ -10,6 +11,7 @@ const DEMO_CREDENTIALS = {
     email: 'demo@roadrescue.in',
     phone: '+91 98765 43210',
     accountType: 'customer',
+    role: 'customer',
     joinDate: '2024-01-01'
   },
   mechanicEmail: 'mechanic@roadrescue.in',
@@ -20,6 +22,11 @@ const DEMO_CREDENTIALS = {
     email: 'mechanic@roadrescue.in',
     phone: '+91 98765 12345',
     accountType: 'mechanic',
+    role: 'mechanic',
+    workshopName: 'Kumar Auto Care & Recovery',
+    experience: 12,
+    serviceArea: 'Sector 14, Gurgaon / Delhi NCR',
+    services: ['Engine Repair', 'Tyre Service', 'Battery Jumpstart', 'Brake Service', 'Vehicle Towing'],
     joinDate: '2024-01-01'
   }
 };
@@ -30,87 +37,192 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Initialize and verify authentication state
   useEffect(() => {
-    const savedUser = storage.get(STORAGE_KEYS.USER);
-    if (savedUser) {
-      setUser(savedUser);
-    }
-    setIsLoading(false);
+    const initializeAuth = async () => {
+      // 1. Immediately hydrate from localStorage for instantaneous UI rendering
+      const savedUser = storage.get(STORAGE_KEYS.USER);
+      if (savedUser) {
+        setUser(savedUser);
+      }
+
+      // 2. Verify and refresh session with real backend via HttpOnly cookie
+      try {
+        const response = await authApi.getMe();
+        if (response?.success && response?.user) {
+          const verifiedUser = {
+            ...response.user,
+            accountType: response.user.role // Ensure frontend compatibility
+          };
+          storage.set(STORAGE_KEYS.USER, verifiedUser);
+          setUser(verifiedUser);
+        }
+      } catch (err) {
+        // If server returns 401 Unauthorized, the session has expired or cookie is cleared
+        if (err.status === 401) {
+          storage.remove(STORAGE_KEYS.USER);
+          setUser(null);
+        }
+        // If it's a network/offline error, preserve the local cached session
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
-  const login = (email, password) => {
-    // Check demo customer credentials
-    if (email === DEMO_CREDENTIALS.email && password === DEMO_CREDENTIALS.password) {
-      const userData = DEMO_CREDENTIALS.user;
-      storage.set(STORAGE_KEYS.USER, userData);
-      setUser(userData);
-      return { success: true, user: userData };
+  /**
+   * Log in user using real backend API with fallback
+   */
+  const login = async (email, password) => {
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    try {
+      // 1. Real Backend Authentication via POST /api/auth/login
+      const response = await authApi.login(cleanEmail, password);
+
+      if (response?.success && response?.user) {
+        const authenticatedUser = {
+          ...response.user,
+          accountType: response.user.role
+        };
+        storage.set(STORAGE_KEYS.USER, authenticatedUser);
+        setUser(authenticatedUser);
+        return { success: true, user: authenticatedUser };
+      }
+    } catch (err) {
+      // If error is an explicit 401/400/403/429 from the server, return server message
+      if (err.status) {
+        return {
+          success: false,
+          error: err.message || 'Invalid email or password.'
+        };
+      }
+
+      // 2. Offline / Demo Fallback (if backend is not running)
+      console.warn('Backend unavailable, falling back to local demo auth:', err.message);
+
+      if (cleanEmail === DEMO_CREDENTIALS.email && password === DEMO_CREDENTIALS.password) {
+        const userData = DEMO_CREDENTIALS.user;
+        storage.set(STORAGE_KEYS.USER, userData);
+        setUser(userData);
+        return { success: true, user: userData };
+      }
+
+      if (cleanEmail === DEMO_CREDENTIALS.mechanicEmail && password === DEMO_CREDENTIALS.mechanicPassword) {
+        const userData = DEMO_CREDENTIALS.mechanicUser;
+        storage.set(STORAGE_KEYS.USER, userData);
+        setUser(userData);
+        return { success: true, user: userData };
+      }
+
+      const registeredUsers = storage.get('roadrescue_registered_users') || [];
+      const foundUser = registeredUsers.find(
+        (u) => u.email.toLowerCase() === cleanEmail && u.password === password
+      );
+      if (foundUser) {
+        const { password: _, ...userWithoutPass } = foundUser;
+        storage.set(STORAGE_KEYS.USER, userWithoutPass);
+        setUser(userWithoutPass);
+        return { success: true, user: userWithoutPass };
+      }
+
+      return {
+        success: false,
+        error: err.message || 'Unable to connect to authentication server.'
+      };
     }
 
-    // Check demo mechanic credentials
-    if (email === DEMO_CREDENTIALS.mechanicEmail && password === DEMO_CREDENTIALS.mechanicPassword) {
-      const userData = DEMO_CREDENTIALS.mechanicUser;
-      storage.set(STORAGE_KEYS.USER, userData);
-      setUser(userData);
-      return { success: true, user: userData };
-    }
-
-    // Check registered users list or last saved user
-    const registeredUsers = storage.get('roadrescue_registered_users') || [];
-    const foundUser = registeredUsers.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-    );
-    if (foundUser) {
-      const { password: _, ...userWithoutPass } = foundUser;
-      storage.set(STORAGE_KEYS.USER, userWithoutPass);
-      setUser(userWithoutPass);
-      return { success: true, user: userWithoutPass };
-    }
-
-    const savedUser = storage.get(STORAGE_KEYS.USER);
-    if (savedUser && savedUser.email && savedUser.email.toLowerCase() === email.toLowerCase()) {
-      setUser(savedUser);
-      return { success: true, user: savedUser };
-    }
-
-    return { 
-      success: false, 
-      error: 'Invalid credentials. Use demo customer (demo@roadrescue.in / demo123) or mechanic (mechanic@roadrescue.in / mechanic123).' 
-    };
+    return { success: false, error: 'Authentication failed. Please try again.' };
   };
 
-  const register = (userData) => {
+  /**
+   * Register new customer or mechanic using real backend API
+   */
+  const register = async (userData) => {
     const role = (userData.role || userData.accountType || 'customer').toLowerCase();
-    const newUser = {
-      id: `usr_${Date.now()}`,
-      name: userData.name || userData.fullName || 'User',
+
+    // Prepare harmonized payload
+    const payload = {
+      fullName: userData.fullName || userData.name,
+      name: userData.fullName || userData.name,
       email: userData.email,
       phone: userData.phone,
-      accountType: role,
+      password: userData.password,
       role: role,
-      // Mechanic specific profile fields
-      workshopName: userData.workshopName || '',
-      servicesOffered: userData.servicesOffered || [],
-      experienceYears: userData.experienceYears || '',
-      serviceArea: userData.serviceArea || '',
-      joinDate: new Date().toISOString()
+      accountType: role,
+      workshopName: userData.workshopName,
+      servicesOffered: userData.servicesOffered || userData.services,
+      experienceYears: userData.experienceYears !== undefined ? Number(userData.experienceYears) : undefined,
+      serviceArea: userData.serviceArea
     };
 
-    // Also persist into registered users list for subsequent logins
-    const registeredUsers = storage.get('roadrescue_registered_users') || [];
-    registeredUsers.push({ ...newUser, password: userData.password });
-    storage.set('roadrescue_registered_users', registeredUsers);
+    try {
+      // 1. Real Backend Registration via POST /api/auth/register
+      const response = await authApi.register(payload);
 
-    storage.set(STORAGE_KEYS.USER, newUser);
-    setUser(newUser);
-    return { success: true, user: newUser };
+      if (response?.success && response?.user) {
+        const registeredUser = {
+          ...response.user,
+          accountType: response.user.role
+        };
+        storage.set(STORAGE_KEYS.USER, registeredUser);
+        setUser(registeredUser);
+        return { success: true, user: registeredUser };
+      }
+    } catch (err) {
+      // If error is from server (e.g. 409 Duplicate Email or 400 Validation)
+      if (err.status) {
+        throw new Error(err.message || 'Registration failed.');
+      }
+
+      // 2. Offline / Local fallback if backend cannot be reached
+      console.warn('Backend unavailable, falling back to local registration:', err.message);
+
+      const newUser = {
+        id: `usr_${Date.now()}`,
+        name: payload.name || 'User',
+        email: payload.email,
+        phone: payload.phone,
+        accountType: role,
+        role: role,
+        workshopName: payload.workshopName || '',
+        servicesOffered: payload.servicesOffered || [],
+        experienceYears: payload.experienceYears || '',
+        serviceArea: payload.serviceArea || '',
+        joinDate: new Date().toISOString()
+      };
+
+      const registeredUsers = storage.get('roadrescue_registered_users') || [];
+      registeredUsers.push({ ...newUser, password: userData.password });
+      storage.set('roadrescue_registered_users', registeredUsers);
+
+      storage.set(STORAGE_KEYS.USER, newUser);
+      setUser(newUser);
+      return { success: true, user: newUser };
+    }
+
+    throw new Error('Registration failed. Please try again.');
   };
 
-  const logout = () => {
-    storage.remove(STORAGE_KEYS.USER);
-    setUser(null);
+  /**
+   * Log out user from both server (clearing HttpOnly cookie) and client
+   */
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch (err) {
+      console.warn('Server logout error (proceeding with local cleanup):', err.message);
+    } finally {
+      storage.remove(STORAGE_KEYS.USER);
+      setUser(null);
+    }
   };
 
+  /**
+   * Update profile information
+   */
   const updateUser = (updates) => {
     const updatedUser = { ...user, ...updates };
     storage.set(STORAGE_KEYS.USER, updatedUser);
@@ -118,7 +230,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser, DEMO_CREDENTIALS }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        login,
+        register,
+        logout,
+        updateUser,
+        DEMO_CREDENTIALS
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

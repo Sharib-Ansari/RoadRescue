@@ -112,7 +112,7 @@ export default function LoginPage() {
 
       let targetRoute = '/dashboard';
       if (login) {
-        const res = login(formData.email.trim(), formData.password);
+        const res = await login(formData.email.trim(), formData.password);
         if (res && res.success === false) {
           setAuthError(res.error || 'Invalid email or password.');
           setIsLoading(false);

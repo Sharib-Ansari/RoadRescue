@@ -1,0 +1,231 @@
+{
+  "info": {
+    "name": "RoadRescue Complete Backend API Collection",
+    "description": "Postman Collection for RoadRescue MERN Backend: Auth, Vehicles, Service Requests, Mechanics Discovery & Role-Based Dashboards",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. System & Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:5000/api/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Register Customer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Sharib Customer\",\n  \"email\": \"customer@roadrescue.in\",\n  \"phone\": \"9876543210\",\n  \"password\": \"CustomerPass123!\",\n  \"role\": \"customer\"\n}"
+            },
+            "url": "http://localhost:5000/api/auth/register"
+          }
+        },
+        {
+          "name": "Register Mechanic",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Suhan Mechanic\",\n  \"email\": \"mechanic@roadrescue.in\",\n  \"phone\": \"9876543211\",\n  \"password\": \"MechanicPass123!\",\n  \"role\": \"mechanic\",\n  \"workshopName\": \"Suhan Quick Fix Garage\",\n  \"experienceYears\": 7,\n  \"serviceArea\": \"Delhi NCR / Gurgaon\",\n  \"servicesOffered\": [\"Engine Repair\", \"Tyre Service\", \"Battery Jumpstart\"]\n}"
+            },
+            "url": "http://localhost:5000/api/auth/register"
+          }
+        },
+        {
+          "name": "Login (Demo Customer)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo@roadrescue.in\",\n  \"password\": \"demo123\"\n}"
+            },
+            "url": "http://localhost:5000/api/auth/login"
+          }
+        },
+        {
+          "name": "Login (Demo Mechanic)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"mechanic@roadrescue.in\",\n  \"password\": \"mechanic123\"\n}"
+            },
+            "url": "http://localhost:5000/api/auth/login"
+          }
+        },
+        {
+          "name": "Get Current User Profile (Me)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:5000/api/auth/me"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "http://localhost:5000/api/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Vehicles Management",
+      "item": [
+        {
+          "name": "Get My Vehicles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:5000/api/vehicles"
+          }
+        },
+        {
+          "name": "Add Vehicle",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brand\": \"Honda\",\n  \"model\": \"City\",\n  \"type\": \"Car\",\n  \"registrationNumber\": \"MH 02 CZ 4421\",\n  \"fuelType\": \"Petrol\",\n  \"year\": 2022,\n  \"isDefault\": true\n}"
+            },
+            "url": "http://localhost:5000/api/vehicles"
+          }
+        },
+        {
+          "name": "Update Vehicle",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"City Hybrid\",\n  \"fuelType\": \"Hybrid\"\n}"
+            },
+            "url": "http://localhost:5000/api/vehicles/{{vehicleId}}"
+          }
+        },
+        {
+          "name": "Delete Vehicle",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "http://localhost:5000/api/vehicles/{{vehicleId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Emergency Service Requests",
+      "item": [
+        {
+          "name": "Create Service Request",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleName\": \"Honda City\",\n  \"vehicleReg\": \"MH 02 CZ 4421\",\n  \"problemCategory\": \"Flat Tyre / Puncture\",\n  \"description\": \"Front right tyre flat on highway\",\n  \"location\": \"Western Express Highway near Andheri\",\n  \"estimatedCharge\": 300\n}"
+            },
+            "url": "http://localhost:5000/api/requests"
+          }
+        },
+        {
+          "name": "Get My Requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:5000/api/requests"
+          }
+        },
+        {
+          "name": "Get Active Request",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:5000/api/requests/active"
+          }
+        },
+        {
+          "name": "Update Request Status (Mechanic)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"accepted\",\n  \"note\": \"Mechanic en route\"\n}"
+            },
+            "url": "http://localhost:5000/api/requests/{{requestId}}/status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Mechanics Discovery",
+      "item": [
+        {
+          "name": "Get All Mechanics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:5000/api/mechanics"
+          }
+        },
+        {
+          "name": "Filter Mechanics by Service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:5000/api/mechanics?service=Tyre%20Service"
+          }
+        },
+        {
+          "name": "Get Mechanic Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:5000/api/mechanics/{{mechanicId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Role-Protected Dashboards",
+      "item": [
+        {
+          "name": "Customer Dashboard (Customer Only)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:5000/api/customer/dashboard"
+          }
+        },
+        {
+          "name": "Mechanic Dashboard (Mechanic Only)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:5000/api/mechanic/dashboard"
+          }
+        }
+      ]
+    }
+  ]
+}

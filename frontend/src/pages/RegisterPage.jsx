@@ -167,15 +167,12 @@ export default function RegisterPage() {
       };
 
       if (register) {
-        await register(payload);
-      } else {
-        localStorage.setItem(
-          'roadrescue_user',
-          JSON.stringify({
-            id: 'usr_' + Date.now(),
-            ...payload
-          })
-        );
+        const res = await register(payload);
+        if (res && res.success === false) {
+          setAuthError(res.error || 'Failed to create account. Please try again.');
+          setIsLoading(false);
+          return;
+        }
       }
 
       // Role-based navigation

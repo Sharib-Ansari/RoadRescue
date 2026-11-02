@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "seed": "node src/utils/seed.js",
+    "test": "node test-suite.js"
   },
   "keywords": [
     "roadrescue",
@@ -16,11 +18,14 @@
   "author": "Sharib Ansari",
   "license": "ISC",
   "dependencies": {
+    "argon2": "^0.45.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
+    "express-rate-limit": "^8.7.2",
     "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.11.4",
     "morgan": "^1.12.1"
   },
