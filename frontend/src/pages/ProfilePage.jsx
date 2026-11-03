@@ -31,9 +31,9 @@ const ProfilePage = () => {
   const [emailInvoices, setEmailInvoices] = useState(true);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    updateUser({
+    await updateUser({
       name,
       phone,
       workshopName,

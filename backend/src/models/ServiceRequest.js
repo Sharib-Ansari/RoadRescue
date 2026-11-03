@@ -92,7 +92,7 @@ const serviceRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['submitted', 'accepted', 'on_the_way', 'arrived', 'completed', 'cancelled'],
+      enum: ['submitted', 'accepted', 'on_the_way', 'arrived', 'repair_in_progress', 'completed', 'cancelled'],
       default: 'submitted',
       index: true
     },

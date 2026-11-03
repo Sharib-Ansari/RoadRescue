@@ -25,6 +25,7 @@ import MechanicDashboardLayout from '../layouts/MechanicDashboardLayout';
 import { useAuth } from '../context/AuthContext';
 import { storage } from '../utils/storage';
 import { formatCurrency, formatDate } from '../utils/helpers';
+import authApi from '../utils/api';
 import './MechanicDashboardPage.css';
 
 // Initial realistic incoming mock service requests for mechanics
@@ -136,8 +137,11 @@ const JOB_STATUSES = [
 export default function MechanicDashboardPage() {
   const { user } = useAuth();
 
-  // Availability state (persisted in localStorage)
+  // Availability state (persisted in localStorage & MongoDB)
   const [isOnline, setIsOnline] = useState(() => {
+    if (user?.mechanicProfile?.isAvailable !== undefined) {
+      return user.mechanicProfile.isAvailable;
+    }
     const saved = storage.get('roadrescue_mechanic_online');
     return saved !== null ? saved : true;
   });
@@ -160,6 +164,63 @@ export default function MechanicDashboardPage() {
   // Action feedback banner
   const [actionAlert, setActionAlert] = useState(null);
 
+  // Fetch real requests from MongoDB
+  const fetchMechanicData = async () => {
+    try {
+      const res = await authApi.getMyRequests();
+      if (res?.success && Array.isArray(res.requests)) {
+        const dbIncoming = [];
+        const dbActive = [];
+        const dbCompleted = [];
+
+        res.requests.forEach((r) => {
+          const formatted = {
+            id: r.requestId || r.id || r._id,
+            dbId: r.id || r._id,
+            customerName: r.customerId?.name || 'Stranded Driver',
+            customerPhone: r.customerId?.phone || '+91 98765 00000',
+            vehicleType: r.vehicleName?.toLowerCase().includes('bike') ? 'Motorcycle/Bike' : 'Car',
+            vehicleModel: `${r.vehicleName} ${r.vehicleReg ? `(${r.vehicleReg})` : ''}`,
+            problemCategory: r.problemCategory,
+            description: r.description || 'Assistance requested',
+            location: r.location,
+            distance: 2.1,
+            estimatedCharge: r.estimatedCharge || 250,
+            requestedAt: new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            status: r.status === 'on_the_way' ? 'On The Way' : (r.status === 'repair_in_progress' ? 'Repair In Progress' : r.status.charAt(0).toUpperCase() + r.status.slice(1)),
+            rawStatus: r.status,
+            isDbRecord: true
+          };
+
+          if (r.status === 'submitted') {
+            dbIncoming.push(formatted);
+          } else if (['accepted', 'on_the_way', 'arrived', 'repair_in_progress'].includes(r.status)) {
+            dbActive.push(formatted);
+          } else if (r.status === 'completed') {
+            dbCompleted.push({
+              ...formatted,
+              servicePerformed: `${r.problemCategory} Resolution`,
+              amountEarned: r.finalCharge || r.estimatedCharge || 250,
+              completedAt: new Date(r.updatedAt || r.createdAt).toLocaleDateString(),
+              status: 'Completed',
+              rating: 5.0
+            });
+          }
+        });
+
+        if (dbIncoming.length > 0) setIncomingRequests(dbIncoming);
+        if (dbActive.length > 0) setActiveJobs(dbActive);
+        if (dbCompleted.length > 0) setCompletedJobs(dbCompleted);
+      }
+    } catch (err) {
+      console.warn('Could not fetch requests from backend API, using local state:', err.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchMechanicData();
+  }, []);
+
   // Sync state changes with localStorage
   useEffect(() => {
     storage.set('roadrescue_mechanic_online', isOnline);
@@ -177,22 +238,38 @@ export default function MechanicDashboardPage() {
     storage.set('roadrescue_mechanic_completed', completedJobs);
   }, [completedJobs]);
 
-  const toggleAvailability = () => {
-    setIsOnline((prev) => {
-      const next = !prev;
-      setActionAlert({
-        type: next ? 'success' : 'info',
-        message: next
-          ? 'You are now ONLINE and visible to nearby stranded drivers on the dispatch grid.'
-          : 'You are now OFFLINE. Incoming emergency dispatch requests are paused.'
-      });
-      setTimeout(() => setActionAlert(null), 4000);
-      return next;
+  const toggleAvailability = async () => {
+    const nextState = !isOnline;
+    setIsOnline(nextState);
+
+    // Persist to MongoDB
+    try {
+      await authApi.updateAvailability(nextState);
+    } catch (err) {
+      console.warn('Failed to update availability in backend:', err.message);
+    }
+
+    setActionAlert({
+      type: nextState ? 'success' : 'info',
+      message: nextState
+        ? 'You are now ONLINE and visible to nearby stranded drivers on the dispatch grid.'
+        : 'You are now OFFLINE. Incoming emergency dispatch requests are paused.'
     });
+    setTimeout(() => setActionAlert(null), 4000);
   };
 
   // Accept incoming request
-  const handleAcceptRequest = (request) => {
+  const handleAcceptRequest = async (request) => {
+    // 1. If it is a real DB record, update status on backend
+    const targetId = request.dbId || request.id;
+    try {
+      if (!targetId.startsWith('REQ-')) {
+        await authApi.updateRequestStatus(targetId, 'accepted', 'Mechanic accepted the request');
+      }
+    } catch (err) {
+      console.warn('API error accepting request:', err.message);
+    }
+
     // Remove from incoming
     setIncomingRequests((prev) => prev.filter((r) => r.id !== request.id));
 
@@ -222,9 +299,20 @@ export default function MechanicDashboardPage() {
   };
 
   // Advance or set job status
-  const handleUpdateJobStatus = (jobId, newStatus) => {
+  const handleUpdateJobStatus = async (jobId, newStatus) => {
     const job = activeJobs.find((j) => j.id === jobId);
     if (!job) return;
+
+    // 1. Sync with backend API
+    const targetId = job.dbId || job.id;
+    try {
+      if (!targetId.startsWith('JOB-') && !targetId.startsWith('REQ-')) {
+        const backendStatus = newStatus.toLowerCase().replace(/\s+/g, '_');
+        await authApi.updateRequestStatus(targetId, backendStatus, `Milestone updated to ${newStatus}`);
+      }
+    } catch (err) {
+      console.warn('API error updating status:', err.message);
+    }
 
     if (newStatus === 'Completed') {
       // Remove from active

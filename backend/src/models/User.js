@@ -21,6 +21,10 @@ const mechanicProfileSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: ''
+    },
+    isAvailable: {
+      type: Boolean,
+      default: true
     }
   },
   { _id: false }
@@ -65,6 +69,24 @@ const userSchema = new mongoose.Schema(
       default: 'customer'
     },
     isActive: {
+      type: Boolean,
+      default: true
+    },
+    emergencyContactName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    emergencyContactPhone: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    smsAlerts: {
+      type: Boolean,
+      default: true
+    },
+    emailInvoices: {
       type: Boolean,
       default: true
     },

@@ -221,12 +221,28 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Update profile information
+   * Update profile information in MongoDB and local storage
    */
-  const updateUser = (updates) => {
+  const updateUser = async (updates) => {
+    try {
+      const response = await authApi.updateProfile(updates);
+      if (response?.success && response.user) {
+        const syncedUser = {
+          ...response.user,
+          accountType: response.user.role
+        };
+        storage.set(STORAGE_KEYS.USER, syncedUser);
+        setUser(syncedUser);
+        return { success: true, user: syncedUser };
+      }
+    } catch (err) {
+      console.warn('Backend profile update failed, applying locally:', err.message);
+    }
+
     const updatedUser = { ...user, ...updates };
     storage.set(STORAGE_KEYS.USER, updatedUser);
     setUser(updatedUser);
+    return { success: true, user: updatedUser };
   };
 
   return (

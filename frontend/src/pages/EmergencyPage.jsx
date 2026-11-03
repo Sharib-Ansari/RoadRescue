@@ -26,6 +26,7 @@ import {
 import { useVehicles } from '../context/VehicleContext';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { generateId } from '../utils/helpers';
+import authApi from '../utils/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 import './EmergencyPage.css';
 
@@ -134,7 +135,7 @@ export const EmergencyPage = () => {
   };
 
   // Submit Handler
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -144,10 +145,31 @@ export const EmergencyPage = () => {
 
     setIsSubmitting(true);
 
+    let backendRequestId = null;
+
+    // Send real emergency request to backend
+    try {
+      const response = await authApi.createRequest({
+        vehicleId: selectedVehicle?.id && !selectedVehicle.id.startsWith('veh_') ? selectedVehicle.id : undefined,
+        vehicleName: `${selectedVehicle.brand || selectedVehicle.make} ${selectedVehicle.model}`,
+        vehicleReg: selectedVehicle.registrationNumber || '',
+        problemCategory: selectedProblem,
+        description: description.trim() || `Emergency assistance needed for ${selectedProblem}`,
+        location: location.trim(),
+        estimatedCharge: 250
+      });
+
+      if (response?.success && response.request) {
+        backendRequestId = response.request.requestId || response.request.id;
+      }
+    } catch (err) {
+      console.warn('Backend emergency request failed, falling back to local simulation:', err.message);
+    }
+
     const emergencyRequest = {
-      id: generateId(),
+      id: backendRequestId || generateId(),
       vehicleId: selectedVehicle.id,
-      vehicleName: `${selectedVehicle.brand} ${selectedVehicle.model}`,
+      vehicleName: `${selectedVehicle.brand || selectedVehicle.make} ${selectedVehicle.model}`,
       vehicleReg: selectedVehicle.registrationNumber,
       problemCategory: selectedProblem,
       description: description.trim(),

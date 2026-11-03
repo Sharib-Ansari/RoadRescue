@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -18,10 +18,38 @@ import { useVehicles } from '../context/VehicleContext';
 import { mockServiceHistory } from '../data/mockRequests';
 import StatusBadge from '../components/common/StatusBadge';
 import { formatDate, formatCurrency } from '../utils/helpers';
+import authApi from '../utils/api';
 
 const DashboardPage = () => {
   const { user } = useAuth();
   const { vehicles, selectedVehicle } = useVehicles();
+
+  const [serviceRequests, setServiceRequests] = useState(mockServiceHistory);
+
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const response = await authApi.getMyRequests();
+        if (response?.success && Array.isArray(response.requests) && response.requests.length > 0) {
+          const mapped = response.requests.map((r) => ({
+            id: r.requestId || r.id || r._id,
+            serviceType: r.problemCategory,
+            mechanicName: r.mechanicName || (r.mechanicId?.name) || 'Assigned Mechanic',
+            workshopName: r.workshopName || (r.mechanicId?.mechanicProfile?.workshopName) || 'RoadRescue Partner',
+            vehicleName: r.vehicleName,
+            date: r.createdAt,
+            charge: r.finalCharge || r.estimatedCharge || 250,
+            status: r.status === 'on_the_way' ? 'On The Way' : (r.status === 'repair_in_progress' ? 'Repair In Progress' : r.status.charAt(0).toUpperCase() + r.status.slice(1))
+          }));
+          setServiceRequests(mapped);
+        }
+      } catch (err) {
+        console.warn('Could not fetch requests from server, using local history:', err.message);
+      }
+    };
+
+    fetchRequests();
+  }, []);
 
   return (
     <DashboardLayout title="Dashboard">
@@ -129,12 +157,12 @@ const DashboardPage = () => {
             </div>
 
             <div className="card-body" style={{ padding: 0 }}>
-              {mockServiceHistory.map((item, idx) => (
+              {serviceRequests.map((item, idx) => (
                 <div
                   key={item.id}
                   style={{
                     padding: '1.25rem 1.5rem',
-                    borderBottom: idx !== mockServiceHistory.length - 1 ? '1px solid var(--border-color)' : 'none',
+                    borderBottom: idx !== serviceRequests.length - 1 ? '1px solid var(--border-color)' : 'none',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',

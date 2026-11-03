@@ -60,56 +60,45 @@ async function request(endpoint, options = {}) {
 }
 
 export const authApi = {
-  /**
-   * Register a customer or mechanic
-   */
-  register: (userData) => request('/auth/register', {
-    method: 'POST',
-    body: userData
+  // Authentication & Session
+  register: (userData) => request('/auth/register', { method: 'POST', body: userData }),
+  login: (email, password) => request('/auth/login', { method: 'POST', body: { email, password } }),
+  getMe: () => request('/auth/me', { method: 'GET' }),
+  updateProfile: (profileData) => request('/auth/profile', { method: 'PATCH', body: profileData }),
+  updateAvailability: (isOnline) => request('/auth/availability', { method: 'PATCH', body: { isOnline } }),
+  logout: () => request('/auth/logout', { method: 'POST' }),
+  checkHealth: () => request('/health', { method: 'GET' }),
+
+  // Dashboards
+  getCustomerDashboard: () => request('/customer/dashboard', { method: 'GET' }),
+  getMechanicDashboard: () => request('/mechanic/dashboard', { method: 'GET' }),
+
+  // Vehicles
+  getVehicles: () => request('/vehicles', { method: 'GET' }),
+  addVehicle: (vehicleData) => request('/vehicles', { method: 'POST', body: vehicleData }),
+  updateVehicle: (id, vehicleData) => request(`/vehicles/${id}`, { method: 'PUT', body: vehicleData }),
+  deleteVehicle: (id) => request(`/vehicles/${id}`, { method: 'DELETE' }),
+
+  // Service Requests
+  createRequest: (requestData) => request('/requests', { method: 'POST', body: requestData }),
+  getMyRequests: () => request('/requests', { method: 'GET' }),
+  getActiveRequest: () => request('/requests/active', { method: 'GET' }),
+  getRequestById: (id) => request(`/requests/${id}`, { method: 'GET' }),
+  updateRequestStatus: (id, status, note, finalCharge) => request(`/requests/${id}/status`, {
+    method: 'PATCH',
+    body: { status, note, finalCharge }
   }),
 
-  /**
-   * Log in user with email and password
-   */
-  login: (email, password) => request('/auth/login', {
-    method: 'POST',
-    body: { email, password }
-  }),
-
-  /**
-   * Get current authenticated user profile using HttpOnly cookie
-   */
-  getMe: () => request('/auth/me', {
-    method: 'GET'
-  }),
-
-  /**
-   * Log out and clear authentication cookie
-   */
-  logout: () => request('/auth/logout', {
-    method: 'POST'
-  }),
-
-  /**
-   * Check backend health and MongoDB Atlas status
-   */
-  checkHealth: () => request('/health', {
-    method: 'GET'
-  }),
-
-  /**
-   * Customer dashboard data
-   */
-  getCustomerDashboard: () => request('/customer/dashboard', {
-    method: 'GET'
-  }),
-
-  /**
-   * Mechanic dashboard data
-   */
-  getMechanicDashboard: () => request('/mechanic/dashboard', {
-    method: 'GET'
-  })
+  // Mechanics
+  getMechanics: (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.service && params.service !== 'all') query.append('service', params.service);
+    if (params.search) query.append('search', params.search);
+    if (params.area) query.append('area', params.area);
+    const qs = query.toString();
+    return request(`/mechanics${qs ? `?${qs}` : ''}`, { method: 'GET' });
+  },
+  getMechanicById: (id) => request(`/mechanics/${id}`, { method: 'GET' })
 };
 
 export default authApi;

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { register, login, getMe, logout } from '../controllers/authController.js';
+import { register, login, getMe, logout, updateMe, updateAvailability } from '../controllers/authController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -23,6 +23,8 @@ router.post('/login', loginLimiter, login);
 
 // Authenticated routes
 router.get('/me', requireAuth, getMe);
+router.patch('/profile', requireAuth, updateMe);
+router.patch('/availability', requireAuth, updateAvailability);
 router.post('/logout', requireAuth, logout);
 
 export default router;

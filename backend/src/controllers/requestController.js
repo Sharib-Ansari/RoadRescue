@@ -185,46 +185,79 @@ export const getRequestById = async (req, res, next) => {
 };
 
 /**
- * Update request status (e.g. mechanic accepts, on the way, arrives, completes)
+ * Update request status (e.g. mechanic accepts, on the way, arrives, completes, rejects)
  * PATCH /api/requests/:id/status
  */
 export const updateRequestStatus = async (req, res, next) => {
   try {
     const { status, note, finalCharge } = req.body;
 
-    const validStatuses = ['submitted', 'accepted', 'on_the_way', 'arrived', 'completed', 'cancelled'];
-    if (!validStatuses.includes(status)) {
+    // Normalize incoming status from frontend (handles spaces/casing)
+    const normalizeStatus = (s) => {
+      if (!s) return '';
+      const lower = s.toLowerCase().replace(/\s+/g, '_');
+      if (lower === 'on_the_way' || lower === 'ontheway') return 'on_the_way';
+      if (lower === 'repair_in_progress' || lower === 'repairinprogress') return 'repair_in_progress';
+      return lower;
+    };
+
+    const targetStatus = normalizeStatus(status);
+    const validStatuses = ['submitted', 'accepted', 'on_the_way', 'arrived', 'repair_in_progress', 'completed', 'cancelled'];
+    if (!validStatuses.includes(targetStatus)) {
       return next(new AppError(`Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400));
     }
 
-    const request = await ServiceRequest.findById(req.params.id);
+    // Support lookup by MongoDB _id or human-readable requestId (e.g., RR-XXXXXX)
+    const query = req.params.id.startsWith('RR-')
+      ? { requestId: req.params.id }
+      : { _id: req.params.id };
+
+    const request = await ServiceRequest.findOne(query);
     if (!request) {
       return next(new AppError('Service request not found', 404));
     }
 
-    // If a mechanic accepts an unassigned request, assign them
-    if (status === 'accepted' && req.user.role === 'mechanic') {
-      request.mechanicId = req.user._id;
-      request.mechanicName = req.user.name;
-      request.workshopName = req.user.mechanicProfile?.workshopName || '';
+    // Permission and ownership verification
+    const isCustomerOwner = request.customerId.toString() === req.user._id.toString();
+    const isAssignedMechanic = request.mechanicId && request.mechanicId.toString() === req.user._id.toString();
+
+    if (req.user.role === 'customer') {
+      if (!isCustomerOwner) {
+        return next(new AppError('Unauthorized: You can only update your own service request', 403));
+      }
+      if (targetStatus !== 'cancelled') {
+        return next(new AppError('Customers can only cancel a pending service request', 403));
+      }
+    } else if (req.user.role === 'mechanic') {
+      // Mechanic can accept an open request, or manage a request already assigned to them
+      if (!isAssignedMechanic && request.status !== 'submitted' && targetStatus !== 'accepted') {
+        return next(new AppError('Unauthorized: This request is assigned to another mechanic', 403));
+      }
+
+      // If a mechanic accepts an unassigned request, assign them
+      if (targetStatus === 'accepted') {
+        request.mechanicId = req.user._id;
+        request.mechanicName = req.user.name;
+        request.workshopName = req.user.mechanicProfile?.workshopName || 'Certified Workshop Partner';
+      }
     }
 
-    request.status = status;
+    request.status = targetStatus;
     if (finalCharge !== undefined) {
       request.finalCharge = Number(finalCharge);
     }
 
     request.statusHistory.push({
-      status,
+      status: targetStatus,
       timestamp: new Date(),
-      note: note || `Status updated to ${status}`
+      note: note || `Status updated to ${targetStatus} by ${req.user.name}`
     });
 
     await request.save();
 
     res.status(200).json({
       success: true,
-      message: `Request status updated to ${status}`,
+      message: `Request status updated to ${targetStatus}`,
       request
     });
   } catch (error) {

@@ -216,6 +216,90 @@ export const getMe = async (req, res, next) => {
 };
 
 /**
+ * Update authenticated user profile
+ * PATCH /api/auth/profile
+ */
+export const updateMe = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return next(new AppError('User not found', 404));
+    }
+
+    const {
+      name,
+      phone,
+      workshopName,
+      serviceArea,
+      experienceYears,
+      emergencyContactName,
+      emergencyContactPhone,
+      smsAlerts,
+      emailInvoices,
+      isAvailable
+    } = req.body;
+
+    if (name) user.name = name.trim();
+    if (phone !== undefined) user.phone = phone.trim();
+    if (emergencyContactName !== undefined) user.emergencyContactName = emergencyContactName.trim();
+    if (emergencyContactPhone !== undefined) user.emergencyContactPhone = emergencyContactPhone.trim();
+    if (smsAlerts !== undefined) user.smsAlerts = Boolean(smsAlerts);
+    if (emailInvoices !== undefined) user.emailInvoices = Boolean(emailInvoices);
+
+    if (user.role === 'mechanic') {
+      if (!user.mechanicProfile) user.mechanicProfile = {};
+      if (workshopName) user.mechanicProfile.workshopName = workshopName.trim();
+      if (serviceArea) user.mechanicProfile.serviceArea = serviceArea.trim();
+      if (experienceYears !== undefined) user.mechanicProfile.experience = Number(experienceYears);
+      if (isAvailable !== undefined) user.mechanicProfile.isAvailable = Boolean(isAvailable);
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: user.toJSON()
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update mechanic availability status
+ * PATCH /api/auth/availability
+ */
+export const updateAvailability = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'mechanic') {
+      return next(new AppError('Only mechanics can set availability status', 403));
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return next(new AppError('User not found', 404));
+    }
+
+    const { isOnline, isAvailable } = req.body;
+    const availableState = isOnline !== undefined ? Boolean(isOnline) : Boolean(isAvailable);
+
+    if (!user.mechanicProfile) user.mechanicProfile = {};
+    user.mechanicProfile.isAvailable = availableState;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Availability updated to ${availableState ? 'online' : 'offline'}`,
+      isAvailable: user.mechanicProfile.isAvailable
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Log out user and clear auth cookie
  * POST /api/auth/logout
  */

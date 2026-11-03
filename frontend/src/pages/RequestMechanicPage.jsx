@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Wrench,
@@ -18,43 +18,116 @@ import { useVehicles } from '../context/VehicleContext';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { generateId, formatCurrency } from '../utils/helpers';
 import StatusBadge from '../components/common/StatusBadge';
+import authApi from '../utils/api';
 
 const RequestMechanicPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { vehicles, selectedVehicle } = useVehicles();
 
-  const mechanic = mechanics.find((m) => m.id === id) || mechanics[0];
+  const [mechanic, setMechanic] = useState(() => {
+    return mechanics.find((m) => m.id === id) || mechanics[0];
+  });
 
-  const [serviceType, setServiceType] = useState(mechanic?.services[0] || 'General Inspection');
+  useEffect(() => {
+    const fetchMech = async () => {
+      try {
+        const res = await authApi.getMechanicById(id);
+        if (res?.success && res.mechanic) {
+          setMechanic({
+            id: res.mechanic.id || res.mechanic._id,
+            name: res.mechanic.name,
+            workshopName: res.mechanic.mechanicProfile?.workshopName || 'Certified Workshop Partner',
+            phone: res.mechanic.phone || '+91 98765 12345',
+            services: res.mechanic.mechanicProfile?.services || ['General Inspection', 'Engine Diagnostics'],
+            visitCharge: 250,
+            location: res.mechanic.mechanicProfile?.serviceArea || 'Delhi NCR / Gurgaon'
+          });
+        }
+      } catch (err) {
+        // Use static mechanic
+      }
+    };
+    if (id && !id.startsWith('mech_')) {
+      fetchMech();
+    }
+  }, [id]);
+
+  const [serviceType, setServiceType] = useState('General Inspection');
+
+  useEffect(() => {
+    if (mechanic?.services?.length) {
+      setServiceType(mechanic.services[0]);
+    }
+  }, [mechanic]);
+
   const [vehicleId, setVehicleId] = useState(selectedVehicle?.id || (vehicles[0]?.id || ''));
   const [location, setLocation] = useState('Cyber City DLF Phase 2, Gurgaon, Haryana');
   const [urgency, setUrgency] = useState('immediate'); // 'immediate' or 'scheduled'
   const [scheduledTime, setScheduledTime] = useState('');
   const [description, setDescription] = useState('');
   const [submittedRequest, setSubmittedRequest] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
     const chosenVehicle = vehicles.find((v) => v.id === vehicleId) || selectedVehicle;
+    const vehicleDisplayName = chosenVehicle
+      ? `${chosenVehicle.make || chosenVehicle.brand} ${chosenVehicle.model}`
+      : 'Registered Vehicle';
+    const vehicleRegNumber = chosenVehicle?.registrationNumber || 'DL 01 AB 1234';
+
+    // Map serviceType to valid problemCategory
+    let category = 'Other Problem';
+    const stLower = (serviceType || '').toLowerCase();
+    if (stLower.includes('engine')) category = 'Engine Problem';
+    else if (stLower.includes('tyre') || stLower.includes('puncture')) category = 'Flat Tyre / Puncture';
+    else if (stLower.includes('battery')) category = 'Battery Failure';
+    else if (stLower.includes('brake')) category = 'Brake Problem';
+    else if (stLower.includes('electrical')) category = 'Electrical Problem';
+    else if (stLower.includes('fuel')) category = 'Fuel Problem';
+    else if (stLower.includes('clutch') || stLower.includes('chain')) category = 'Chain / Clutch Problem';
+
+    let backendRequestId = null;
+    let backendRecord = null;
+
+    // 1. Send to real MongoDB backend
+    try {
+      const response = await authApi.createRequest({
+        mechanicId: mechanic.id && !mechanic.id.startsWith('mech_') ? mechanic.id : undefined,
+        vehicleId: chosenVehicle?.id && !chosenVehicle.id.startsWith('veh_') ? chosenVehicle.id : undefined,
+        vehicleName: vehicleDisplayName,
+        vehicleReg: vehicleRegNumber,
+        problemCategory: category,
+        description: description || `${serviceType} requested at ${location}`,
+        location,
+        estimatedCharge: mechanic.visitCharge || 250
+      });
+
+      if (response?.success && response.request) {
+        backendRequestId = response.request.requestId || response.request.id;
+        backendRecord = response.request;
+      }
+    } catch (err) {
+      console.warn('Backend service request failed, falling back to local simulation:', err.message);
+    }
 
     const newRequest = {
-      id: generateId(),
+      id: backendRequestId || generateId(),
       mechanicId: mechanic.id,
       mechanicName: mechanic.name,
       workshopName: mechanic.workshopName,
       mechanicPhone: mechanic.phone,
       serviceType,
-      vehicleName: chosenVehicle
-        ? `${chosenVehicle.make} ${chosenVehicle.model} (${chosenVehicle.registrationNumber})`
-        : 'Registered Vehicle',
+      vehicleName: `${vehicleDisplayName} (${vehicleRegNumber})`,
       location,
       urgency,
       scheduledTime: urgency === 'scheduled' ? scheduledTime : 'Immediate (Within 30 mins)',
       description,
       status: 'submitted',
-      charge: mechanic.visitCharge,
+      charge: mechanic.visitCharge || 250,
       date: new Date().toISOString()
     };
 
@@ -64,6 +137,7 @@ const RequestMechanicPage = () => {
     storage.set(STORAGE_KEYS.ACTIVE_REQUEST, newRequest);
 
     setSubmittedRequest(newRequest);
+    setIsSubmitting(false);
   };
 
   return (

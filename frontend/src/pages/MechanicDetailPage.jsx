@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -19,9 +19,10 @@ import {
   Car,
   XCircle
 } from 'lucide-react';
-import { mechanics } from '../data/mechanics';
+import { mechanics as initialMechanics } from '../data/mechanics';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { formatCurrency, formatDate, getInitials } from '../utils/helpers';
+import authApi from '../utils/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 import './MechanicDetailPage.css';
 
@@ -29,15 +30,72 @@ export const MechanicDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // Find mechanic by ID
-  const mechanic = useMemo(() => {
-    return mechanics.find((m) => m.id === id);
+  // Find mechanic state with fallback
+  const [mechanic, setMechanic] = useState(() => {
+    return initialMechanics.find((m) => m.id === id) || null;
+  });
+  const [isLoading, setIsLoading] = useState(!mechanic);
+
+  useEffect(() => {
+    // If not found in static list or if id looks like MongoDB ObjectId (24 hex characters), fetch from backend
+    const fetchMechanicDetails = async () => {
+      try {
+        const response = await authApi.getMechanicById(id);
+        if (response?.success && response.mechanic) {
+          const m = response.mechanic;
+          setMechanic({
+            id: m.id || m._id,
+            name: m.name,
+            workshopName: m.mechanicProfile?.workshopName || 'Certified Workshop Partner',
+            rating: 4.9,
+            reviewCount: 42,
+            distance: 1.5,
+            experience: m.mechanicProfile?.experience || 5,
+            services: m.mechanicProfile?.services || ['Engine Repair', 'Tyre Service', 'Battery Jumpstart'],
+            visitCharge: 250,
+            isAvailable: m.mechanicProfile?.isAvailable !== false,
+            specialization: 'Multi-Brand Assistance',
+            location: m.mechanicProfile?.serviceArea || 'Delhi NCR / Gurgaon',
+            phone: m.phone || '+91 98765 12345',
+            email: m.email,
+            about: `Certified RoadRescue service partner with ${m.mechanicProfile?.experience || 5} years of specialized roadside recovery experience. Fully verified garage partner with high satisfaction scores across engine diagnostics, tyre recovery, and roadside towing.`,
+            reviews: [
+              { id: 'rev_1', author: 'Rahul K.', rating: 5, date: '2024-01-18', comment: 'Very fast response time and transparent rates. Fixed my alternator belt in 20 minutes.' },
+              { id: 'rev_2', author: 'Pooja V.', rating: 5, date: '2024-01-12', comment: 'Professional mechanic. Arrived with full tyre replacement gear.' }
+            ],
+            serviceCharges: {
+              'Emergency Callout': '₹250',
+              'Engine Diagnostics': '₹500 - ₹2,000',
+              'Tyre Puncture & Replacement': '₹300 - ₹800',
+              'Battery Jumpstart': '₹350 - ₹600'
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('Could not fetch mechanic by ID from API:', err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMechanicDetails();
   }, [id]);
 
   // Check if an emergency request is in progress
   const emergencyData = storage.get(STORAGE_KEYS.EMERGENCY_DATA);
 
   // If mechanic not found
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Loading Mechanic Details...">
+        <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--text-secondary)' }}>
+          <div className="loading-spinner" style={{ margin: '0 auto 1rem' }} />
+          <p>Retrieving certified mechanic partner details...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (!mechanic) {
     return (
       <DashboardLayout title="Mechanic Not Found">
