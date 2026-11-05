@@ -10,7 +10,10 @@ import {
   ShieldCheck,
   CheckCircle2,
   Calendar,
-  Plus
+  Plus,
+  Navigation,
+  RotateCcw,
+  XCircle
 } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
@@ -33,10 +36,14 @@ const DashboardPage = () => {
         if (response?.success && Array.isArray(response.requests) && response.requests.length > 0) {
           const mapped = response.requests.map((r) => ({
             id: r.requestId || r.id || r._id,
+            rawStatus: r.status,
             serviceType: r.problemCategory,
             mechanicName: r.mechanicName || (r.mechanicId?.name) || 'Assigned Mechanic',
             workshopName: r.workshopName || (r.mechanicId?.mechanicProfile?.workshopName) || 'RoadRescue Partner',
             vehicleName: r.vehicleName,
+            vehicleReg: r.vehicleReg,
+            location: r.location,
+            customerCoordinates: r.customerCoordinates,
             date: r.createdAt,
             charge: r.finalCharge || r.estimatedCharge || 250,
             status: r.status === 'on_the_way' ? 'On The Way' : (r.status === 'repair_in_progress' ? 'Repair In Progress' : r.status.charAt(0).toUpperCase() + r.status.slice(1))
@@ -52,7 +59,12 @@ const DashboardPage = () => {
       try {
         const res = await authApi.getActiveRequest();
         if (res?.success && res.hasActiveRequest && res.request) {
-          setActiveOngoingRequest(res.request);
+          // Double guard against rejected requests
+          if (res.request.status !== 'rejected') {
+            setActiveOngoingRequest(res.request);
+          } else {
+            setActiveOngoingRequest(null);
+          }
         }
       } catch (err) {
         // quiet ignore
@@ -129,12 +141,66 @@ const DashboardPage = () => {
               </p>
             </div>
           </div>
+          {['accepted', 'on_the_way', 'arrived', 'repair_in_progress'].includes(activeOngoingRequest.status) ? (
+            <Link
+              to={`/tracking/${activeOngoingRequest.requestId}`}
+              className="btn btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              Open Live GPS Tracking Map <ArrowRight size={16} />
+            </Link>
+          ) : activeOngoingRequest.status === 'submitted' ? (
+            <Link
+              to={`/tracking/${activeOngoingRequest.requestId}`}
+              className="btn btn-outline"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              View Dispatch Radar <ArrowRight size={16} />
+            </Link>
+          ) : null}
+        </div>
+      )}
+
+      {/* Declined / Rejected Recent Request Banner if any */}
+      {!activeOngoingRequest && serviceRequests.length > 0 && serviceRequests[0].rawStatus === 'rejected' && (
+        <div
+          style={{
+            background: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1.25rem 1.75rem',
+            marginBottom: '2rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1rem'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#ef4444' }} />
+            <div>
+              <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#f8fafc' }}>
+                Request #{serviceRequests[0].id} Declined by Technician
+              </h4>
+              <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#fca5a5' }}>
+                The selected mechanic was unable to assist with {serviceRequests[0].serviceType}. Please select another nearby specialist.
+              </p>
+            </div>
+          </div>
           <Link
-            to={`/tracking/${activeOngoingRequest.requestId}`}
-            className="btn btn-primary"
+            to="/mechanics"
+            state={{
+              coordinates: serviceRequests[0].customerCoordinates,
+              location: serviceRequests[0].location,
+              problemCategory: serviceRequests[0].serviceType,
+              vehicleName: serviceRequests[0].vehicleName,
+              vehicleReg: serviceRequests[0].vehicleReg
+            }}
+            className="btn btn-danger"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
           >
-            Open Live GPS Tracking Map <ArrowRight size={16} />
+            <RotateCcw size={16} /> Find Another Mechanic
           </Link>
         </div>
       )}
@@ -232,12 +298,72 @@ const DashboardPage = () => {
                       </div>
                     </div>
 
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
                       <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                         {formatCurrency(item.charge)}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                         {item.id}
+                      </div>
+
+                      {/* Status Action Buttons */}
+                      <div style={{ marginTop: '0.2rem' }}>
+                        {['accepted', 'on_the_way', 'arrived', 'repair_in_progress'].includes(item.rawStatus) && (
+                          <Link
+                            to={`/tracking/${item.id}`}
+                            className="btn btn-sm btn-primary"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', fontSize: '12px' }}
+                          >
+                            <Navigation size={12} /> Track Live
+                          </Link>
+                        )}
+
+                        {item.rawStatus === 'submitted' && (
+                          <Link
+                            to={`/tracking/${item.id}`}
+                            className="btn btn-sm btn-outline"
+                            style={{ padding: '4px 10px', fontSize: '12px' }}
+                          >
+                            View Status
+                          </Link>
+                        )}
+
+                        {item.rawStatus === 'rejected' && (
+                          <Link
+                            to="/mechanics"
+                            state={{
+                              coordinates: item.customerCoordinates,
+                              location: item.location,
+                              problemCategory: item.serviceType,
+                              vehicleName: item.vehicleName,
+                              vehicleReg: item.vehicleReg
+                            }}
+                            className="btn btn-sm btn-danger"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', fontSize: '12px' }}
+                          >
+                            <RotateCcw size={12} /> Find Another
+                          </Link>
+                        )}
+
+                        {item.rawStatus === 'completed' && (
+                          <Link
+                            to={`/tracking/${item.id}`}
+                            className="btn btn-sm btn-ghost"
+                            style={{ padding: '4px 10px', fontSize: '12px', color: 'var(--accent-secondary)' }}
+                          >
+                            Summary
+                          </Link>
+                        )}
+
+                        {item.rawStatus === 'cancelled' && (
+                          <Link
+                            to="/emergency"
+                            className="btn btn-sm btn-ghost"
+                            style={{ padding: '4px 10px', fontSize: '12px', color: 'var(--text-muted)' }}
+                          >
+                            Re-book
+                          </Link>
+                        )}
                       </div>
                     </div>
                   </div>

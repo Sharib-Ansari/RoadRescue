@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Search,
@@ -28,6 +28,7 @@ import authApi from '../utils/api';
 import DashboardLayout from '../layouts/DashboardLayout';
 import useGeolocation from '../hooks/useGeolocation';
 import NearbyMechanicsMap from '../components/maps/NearbyMechanicsMap';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 import './MechanicsPage.css';
 
 const SERVICE_OPTIONS = [
@@ -61,16 +62,26 @@ export const MechanicsPage = () => {
   const [mechanicsList, setMechanicsList] = useState([]);
   const [isLoadingMechanics, setIsLoadingMechanics] = useState(true);
 
+  // Request sequence counter to eliminate stale query responses
+  const requestSeqRef = useRef(0);
+
   const fetchBackendMechanics = async (coords = activeCoordinates, radius = radiusKm) => {
+    const currentSeq = ++requestSeqRef.current;
     setIsLoadingMechanics(true);
+
     try {
-      if (coords && coords.latitude && coords.longitude) {
+      const hasCoords = coords && typeof coords.latitude === 'number' && typeof coords.longitude === 'number';
+
+      if (hasCoords) {
         setIsScanningNearby(true);
         const nearRes = await authApi.getNearbyMechanics({
           latitude: coords.latitude,
           longitude: coords.longitude,
           radiusKm: radius
         });
+
+        if (currentSeq !== requestSeqRef.current) return;
+
         if (nearRes?.success && Array.isArray(nearRes.mechanics)) {
           const dbMechs = nearRes.mechanics.map((m) => ({
             id: m.id || m._id,
@@ -78,7 +89,7 @@ export const MechanicsPage = () => {
             workshopName: m.workshopName || 'Certified Workshop Partner',
             rating: 4.9,
             reviewCount: 28,
-            distance: m.distanceKm !== null && m.distanceKm !== undefined ? m.distanceKm : 1.5,
+            distance: m.distanceKm,
             distanceKm: m.distanceKm,
             experience: m.experience || 5,
             services: m.services || ['General Inspection', 'Engine Diagnostics'],
@@ -88,7 +99,7 @@ export const MechanicsPage = () => {
             location: m.serviceArea || 'Local Service Region',
             latitude: m.latitude,
             longitude: m.longitude,
-            phone: m.phone || '+91 98765 12345',
+            phone: m.phone || '',
             email: m.email,
             about: `Verified RoadRescue technician operating within ${radius} km radius.`,
             isDbRecord: true
@@ -102,32 +113,37 @@ export const MechanicsPage = () => {
       }
 
       // Fallback: Fetch general active mechanics directory
-      const response = await authApi.getMechanics();
+      const response = await authApi.getMechanics(
+        hasCoords ? { latitude: coords.latitude, longitude: coords.longitude } : {}
+      );
+
+      if (currentSeq !== requestSeqRef.current) return;
+
       if (response?.success && Array.isArray(response.mechanics)) {
         const mappedDbMechanics = response.mechanics.map((m) => {
-          const coords = m.mechanicProfile?.location?.coordinates;
-          const mLng = coords && coords.length === 2 ? coords[0] : null;
-          const mLat = coords && coords.length === 2 ? coords[1] : null;
+          const coordsArr = m.mechanicProfile?.location?.coordinates;
+          const mLng = coordsArr && coordsArr.length === 2 ? coordsArr[0] : (m.longitude || null);
+          const mLat = coordsArr && coordsArr.length === 2 ? coordsArr[1] : (m.latitude || null);
 
           return {
             id: m.id || m._id,
             name: m.name,
-            workshopName: m.mechanicProfile?.workshopName || 'Certified Workshop Partner',
+            workshopName: m.workshopName || m.mechanicProfile?.workshopName || 'Certified Workshop Partner',
             rating: 4.9,
             reviewCount: 24,
-            distance: 2.0,
-            distanceKm: null,
-            experience: m.mechanicProfile?.experience || 5,
-            services: m.mechanicProfile?.services || ['General Inspection', 'Engine Diagnostics'],
+            distance: m.distanceKm !== undefined ? m.distanceKm : null,
+            distanceKm: m.distanceKm !== undefined ? m.distanceKm : null,
+            experience: m.experience || m.mechanicProfile?.experience || 5,
+            services: m.services || m.mechanicProfile?.services || ['General Inspection', 'Engine Diagnostics'],
             visitCharge: 250,
-            isAvailable: m.mechanicProfile?.isAvailable !== false,
+            isAvailable: m.isAvailable !== undefined ? m.isAvailable : (m.mechanicProfile?.isAvailable !== false),
             specialization: 'Multi-Brand Assistance',
-            location: m.mechanicProfile?.serviceArea || 'Verified Workshop Region',
+            location: m.serviceArea || m.mechanicProfile?.serviceArea || 'Verified Workshop Region',
             latitude: mLat,
             longitude: mLng,
-            phone: m.phone || '+91 98765 12345',
+            phone: m.phone || '',
             email: m.email,
-            about: `Certified RoadRescue service partner with ${m.mechanicProfile?.experience || 5} years of specialized experience.`,
+            about: `Certified RoadRescue service partner with ${m.experience || m.mechanicProfile?.experience || 5} years of specialized experience.`,
             isDbRecord: true
           };
         });
@@ -137,11 +153,15 @@ export const MechanicsPage = () => {
         setMechanicsList([]);
       }
     } catch (err) {
-      console.warn('Could not fetch mechanics from MongoDB API:', err.message);
-      setMechanicsList([]);
+      if (currentSeq === requestSeqRef.current) {
+        console.warn('Could not fetch mechanics from MongoDB API:', err.message);
+        setMechanicsList([]);
+      }
     } finally {
-      setIsScanningNearby(false);
-      setIsLoadingMechanics(false);
+      if (currentSeq === requestSeqRef.current) {
+        setIsScanningNearby(false);
+        setIsLoadingMechanics(false);
+      }
     }
   };
 
@@ -153,7 +173,7 @@ export const MechanicsPage = () => {
     try {
       const coords = await requestLocation();
       if (coords) {
-        await fetchBackendMechanics(coords);
+        await fetchBackendMechanics(coords, radiusKm);
         setViewMode('map');
       }
     } catch (err) {
@@ -192,11 +212,15 @@ export const MechanicsPage = () => {
     setSelectedService('all');
   };
 
+  // Robust reset of all filter, search, selection, and radius states
   const handleClearFilters = () => {
     setSearchQuery('');
     setSelectedService('all');
     setSelectedAvailability('all');
     setSortBy('rating');
+    setSelectedMechanicId(null);
+    setRadiusKm(25);
+    fetchBackendMechanics(activeCoordinates, 25);
   };
 
   const isFilterActive = useMemo(() => {
@@ -204,9 +228,10 @@ export const MechanicsPage = () => {
       searchQuery.trim() !== '' ||
       selectedService !== 'all' ||
       selectedAvailability !== 'all' ||
-      sortBy !== 'rating'
+      sortBy !== 'rating' ||
+      radiusKm !== 25
     );
-  }, [searchQuery, selectedService, selectedAvailability, sortBy]);
+  }, [searchQuery, selectedService, selectedAvailability, sortBy, radiusKm]);
 
   // Client-side filtering and sorting
   const filteredMechanics = useMemo(() => {
@@ -218,7 +243,7 @@ export const MechanicsPage = () => {
           const nameMatch = mechanic.name.toLowerCase().includes(q);
           const workshopMatch = mechanic.workshopName.toLowerCase().includes(q);
           const locationMatch = mechanic.location?.toLowerCase().includes(q);
-          const servicesMatch = mechanic.services.some(s => s.toLowerCase().includes(q));
+          const servicesMatch = mechanic.services.some((s) => s.toLowerCase().includes(q));
           const specializationMatch = mechanic.specialization?.toLowerCase().includes(q);
 
           if (!nameMatch && !workshopMatch && !locationMatch && !servicesMatch && !specializationMatch) {
@@ -229,12 +254,20 @@ export const MechanicsPage = () => {
         // Service Type filter
         if (selectedService !== 'all') {
           const sQuery = selectedService.toLowerCase();
-          const hasService = mechanic.services.some(svc => {
+          const hasService = mechanic.services.some((svc) => {
             const sLower = svc.toLowerCase();
             if (sQuery === 'tyre service') return sLower.includes('tyre') || sLower.includes('puncture');
             if (sQuery === 'battery') return sLower.includes('battery');
             if (sQuery === 'brakes') return sLower.includes('brake');
-            if (sQuery === 'electrical') return sLower.includes('electrical') || sLower.includes('sensor') || sLower.includes('wiring') || sLower.includes('starter') || sLower.includes('alternator');
+            if (sQuery === 'electrical') {
+              return (
+                sLower.includes('electrical') ||
+                sLower.includes('sensor') ||
+                sLower.includes('wiring') ||
+                sLower.includes('starter') ||
+                sLower.includes('alternator')
+              );
+            }
             if (sQuery === 'towing') return sLower.includes('towing') || sLower.includes('flatbed');
             if (sQuery === 'engine repair') return sLower.includes('engine');
             return sLower.includes(sQuery);
@@ -254,17 +287,20 @@ export const MechanicsPage = () => {
           return b.rating - a.rating;
         }
         if (sortBy === 'distance') {
-          return a.distance - b.distance;
+          if (a.distanceKm === null && b.distanceKm === null) return 0;
+          if (a.distanceKm === null) return 1;
+          if (b.distanceKm === null) return -1;
+          return a.distanceKm - b.distanceKm;
         }
         if (sortBy === 'price') {
           return a.visitCharge - b.visitCharge;
         }
         return 0;
       });
-  }, [searchQuery, selectedService, selectedAvailability, sortBy]);
+  }, [mechanicsList, searchQuery, selectedService, selectedAvailability, sortBy]);
 
   // Avatar color generator based on mechanic initials
-  const getAvatarBg = (id) => {
+  const getAvatarBg = (id = '') => {
     const colors = [
       'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)',
       'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
@@ -446,7 +482,7 @@ export const MechanicsPage = () => {
             {/* Radius Selector */}
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--card-bg, #1e293b)', padding: '4px 8px', borderRadius: '8px', border: '1px solid var(--border-color, #334155)', fontSize: '12px' }}>
               <span style={{ color: '#94a3b8', fontWeight: 500 }}>Radius:</span>
-              {[5, 15, 25, 50].map((r) => (
+              {[5, 15, 25, 50, 100].map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -521,13 +557,18 @@ export const MechanicsPage = () => {
         {/* Map View */}
         {viewMode === 'map' && (
           <div style={{ marginBottom: '32px' }}>
-            <NearbyMechanicsMap
-              customerLocation={activeCoordinates}
-              mechanics={filteredMechanics}
-              radiusKm={radiusKm}
-              selectedMechanicId={selectedMechanicId}
-              onSelectMechanic={(mech) => setSelectedMechanicId(mech.id || mech._id)}
-            />
+            <ErrorBoundary
+              title="Mechanics Map Display"
+              message="The interactive map radar encountered an issue. You can switch to List View above to select your mechanic."
+            >
+              <NearbyMechanicsMap
+                customerLocation={activeCoordinates}
+                mechanics={filteredMechanics}
+                radiusKm={radiusKm}
+                selectedMechanicId={selectedMechanicId}
+                onSelectMechanic={(mech) => setSelectedMechanicId(mech.id || mech._id)}
+              />
+            </ErrorBoundary>
           </div>
         )}
 
@@ -687,10 +728,10 @@ export const MechanicsPage = () => {
               No Available Mechanics Found in This Area
             </h3>
             <p className="empty-desc" style={{ color: '#94a3b8', maxWidth: '480px', margin: '0 auto 20px', fontSize: '14px', lineHeight: 1.6 }}>
-              There are currently no certified RoadRescue mechanics active within {radiusKm} km of your search location. Expand your search radius or try searching with different service filters.
+              There are currently no verified active RoadRescue mechanics within {radiusKm} km of your search location. You can expand your search radius or reset filters.
             </p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
-              {[15, 25, 50, 100].map((r) => (
+              {[25, 50, 100, 200].map((r) => (
                 <button
                   key={r}
                   type="button"

@@ -155,7 +155,7 @@ export const getMyRequests = async (req, res, next) => {
 export const getActiveRequest = async (req, res, next) => {
   try {
     let query = {
-      status: { $nin: ['completed', 'cancelled'] }
+      status: { $nin: ['completed', 'cancelled', 'rejected'] }
     };
 
     if (req.user.role === 'customer') {

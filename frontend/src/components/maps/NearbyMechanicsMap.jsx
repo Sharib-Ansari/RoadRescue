@@ -6,12 +6,22 @@ import { MapPin, Phone, Wrench, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // Component to dynamically fit bounds or recenter when center changes
-function MapController({ center, mechanics }) {
+function MapController({ center }) {
   const map = useMap();
 
   useEffect(() => {
-    if (center && center.latitude && center.longitude) {
-      map.setView([center.latitude, center.longitude], 13);
+    if (
+      center &&
+      typeof center.latitude === 'number' &&
+      !isNaN(center.latitude) &&
+      typeof center.longitude === 'number' &&
+      !isNaN(center.longitude)
+    ) {
+      try {
+        map.setView([center.latitude, center.longitude], 13);
+      } catch (e) {
+        // quiet ignore
+      }
     }
   }, [center, map]);
 
@@ -21,21 +31,27 @@ function MapController({ center, mechanics }) {
 export const NearbyMechanicsMap = ({
   customerLocation, // { latitude, longitude }
   mechanics = [],
-  radiusKm = 15,
+  radiusKm = 25,
   selectedMechanicId = null,
   onSelectMechanic
 }) => {
   const navigate = useNavigate();
 
+  const hasCustomerLocation = Boolean(
+    customerLocation &&
+    typeof customerLocation.latitude === 'number' &&
+    !isNaN(customerLocation.latitude) &&
+    typeof customerLocation.longitude === 'number' &&
+    !isNaN(customerLocation.longitude)
+  );
+
   // Default fallback center: Delhi NCR
-  const defaultCenter = customerLocation?.latitude && customerLocation?.longitude
+  const defaultCenter = hasCustomerLocation
     ? [customerLocation.latitude, customerLocation.longitude]
     : [28.6139, 77.2090];
 
-  const hasCustomerLocation = Boolean(customerLocation?.latitude && customerLocation?.longitude);
-
   return (
-    <div className="nearby-map-wrapper" style={{ position: 'relative', width: '100%', height: '480px', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color, #334155)' }}>
+    <div className="nearby-map-wrapper" style={{ position: 'relative', width: '100%', height: '480px', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color, #334155)', background: '#1e293b' }}>
       <MapContainer
         center={defaultCenter}
         zoom={13}
@@ -47,7 +63,7 @@ export const NearbyMechanicsMap = ({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <MapController center={customerLocation} mechanics={mechanics} />
+        <MapController center={customerLocation} />
 
         {/* Customer Location Marker */}
         {hasCustomerLocation && (
@@ -69,7 +85,7 @@ export const NearbyMechanicsMap = ({
             {/* Discovery Radius Circle */}
             <Circle
               center={[customerLocation.latitude, customerLocation.longitude]}
-              radius={(radiusKm || 15) * 1000}
+              radius={(radiusKm || 25) * 1000}
               pathOptions={{
                 color: '#3b82f6',
                 fillColor: '#3b82f6',
@@ -83,7 +99,15 @@ export const NearbyMechanicsMap = ({
 
         {/* Nearby Mechanics Markers */}
         {mechanics.map((mech) => {
-          if (!mech.latitude || !mech.longitude) return null;
+          if (
+            typeof mech.latitude !== 'number' ||
+            isNaN(mech.latitude) ||
+            typeof mech.longitude !== 'number' ||
+            isNaN(mech.longitude)
+          ) {
+            return null;
+          }
+
           const mechId = mech.id || mech._id;
           const isSelected = selectedMechanicId && (mechId === selectedMechanicId);
 

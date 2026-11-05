@@ -9,16 +9,38 @@ function AutoBoundsController({ customerPos, mechanicPos }) {
   const map = useMap();
 
   useEffect(() => {
-    if (customerPos && mechanicPos) {
-      const bounds = L.latLngBounds([
-        [customerPos.latitude, customerPos.longitude],
-        [mechanicPos.latitude, mechanicPos.longitude]
-      ]);
-      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
-    } else if (mechanicPos) {
-      map.panTo([mechanicPos.latitude, mechanicPos.longitude]);
-    } else if (customerPos) {
-      map.panTo([customerPos.latitude, customerPos.longitude]);
+    const validCust = Boolean(
+      customerPos &&
+      typeof customerPos.latitude === 'number' &&
+      !isNaN(customerPos.latitude) &&
+      typeof customerPos.longitude === 'number' &&
+      !isNaN(customerPos.longitude)
+    );
+
+    const validMech = Boolean(
+      mechanicPos &&
+      typeof mechanicPos.latitude === 'number' &&
+      !isNaN(mechanicPos.latitude) &&
+      typeof mechanicPos.longitude === 'number' &&
+      !isNaN(mechanicPos.longitude)
+    );
+
+    try {
+      if (validCust && validMech) {
+        const bounds = L.latLngBounds([
+          [customerPos.latitude, customerPos.longitude],
+          [mechanicPos.latitude, mechanicPos.longitude]
+        ]);
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
+        }
+      } else if (validMech) {
+        map.panTo([mechanicPos.latitude, mechanicPos.longitude]);
+      } else if (validCust) {
+        map.panTo([customerPos.latitude, customerPos.longitude]);
+      }
+    } catch (err) {
+      console.warn('Map bounds adjustment skipped:', err.message);
     }
   }, [customerPos, mechanicPos, map]);
 
@@ -30,16 +52,29 @@ export const LiveTrackingMap = ({
   mechanicLocation, // { latitude, longitude, heading, speed, accuracy, mechanicName }
   status = 'on_the_way'
 }) => {
-  const defaultCenter = mechanicLocation?.latitude && mechanicLocation?.longitude
+  const validCust = Boolean(
+    customerLocation &&
+    typeof customerLocation.latitude === 'number' &&
+    !isNaN(customerLocation.latitude) &&
+    typeof customerLocation.longitude === 'number' &&
+    !isNaN(customerLocation.longitude)
+  );
+
+  const validMech = Boolean(
+    mechanicLocation &&
+    typeof mechanicLocation.latitude === 'number' &&
+    !isNaN(mechanicLocation.latitude) &&
+    typeof mechanicLocation.longitude === 'number' &&
+    !isNaN(mechanicLocation.longitude)
+  );
+
+  const defaultCenter = validMech
     ? [mechanicLocation.latitude, mechanicLocation.longitude]
-    : customerLocation?.latitude && customerLocation?.longitude
+    : validCust
     ? [customerLocation.latitude, customerLocation.longitude]
-    : [28.6139, 77.2090];
+    : [28.6139, 77.2090]; // Delhi NCR fallback
 
-  const hasCustomer = Boolean(customerLocation?.latitude && customerLocation?.longitude);
-  const hasMechanic = Boolean(mechanicLocation?.latitude && mechanicLocation?.longitude);
-
-  const polylinePositions = (hasCustomer && hasMechanic)
+  const polylinePositions = (validCust && validMech)
     ? [
         [customerLocation.latitude, customerLocation.longitude],
         [mechanicLocation.latitude, mechanicLocation.longitude]
@@ -47,7 +82,7 @@ export const LiveTrackingMap = ({
     : [];
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '420px', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color, #334155)' }}>
+    <div style={{ position: 'relative', width: '100%', height: '420px', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color, #334155)', background: '#1e293b' }}>
       <MapContainer
         center={defaultCenter}
         zoom={14}
@@ -75,7 +110,7 @@ export const LiveTrackingMap = ({
         )}
 
         {/* Customer Breakdown Marker */}
-        {hasCustomer && (
+        {validCust && (
           <Marker
             position={[customerLocation.latitude, customerLocation.longitude]}
             icon={createCustomerIcon()}
@@ -90,7 +125,7 @@ export const LiveTrackingMap = ({
         )}
 
         {/* Live Mechanic Moving Marker */}
-        {hasMechanic && (
+        {validMech && (
           <Marker
             position={[mechanicLocation.latitude, mechanicLocation.longitude]}
             icon={createMechanicIcon(status === 'on_the_way')}
