@@ -109,6 +109,13 @@ export const useMechanicLocation = (activeRequestId = null) => {
     setIsBroadcasting(false);
   }, []);
 
+  // Automatically stop broadcasting if the active job was completed or unassigned
+  useEffect(() => {
+    if (!activeRequestId && isBroadcasting) {
+      stopBroadcasting();
+    }
+  }, [activeRequestId, isBroadcasting, stopBroadcasting]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {

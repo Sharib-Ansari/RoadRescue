@@ -73,6 +73,13 @@ const DashboardPage = () => {
 
     fetchRequests();
     fetchActiveRequest();
+
+    if (window.location.hash === '#history') {
+      setTimeout(() => {
+        const el = document.getElementById('service-history-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 300);
+    }
   }, []);
 
   return (
@@ -260,7 +267,7 @@ const DashboardPage = () => {
       <div className="grid grid-cols-3 gap-6">
         {/* Left 2 Cols: Service History */}
         <div style={{ gridColumn: 'span 2' }}>
-          <div className="card">
+          <div className="card" id="service-history-section">
             <div className="card-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Clock size={18} color="var(--accent-secondary)" />

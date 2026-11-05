@@ -157,7 +157,12 @@ export const NearbyMechanicsMap = ({
                       type="button"
                       onClick={() => {
                         if (onSelectMechanic) onSelectMechanic(mech);
-                        navigate(`/request-mechanic/${mechId}`);
+                        navigate(`/request-mechanic/${mechId}`, {
+                          state: {
+                            coordinates: customerLocation,
+                            mechanic: mech
+                          }
+                        });
                       }}
                       style={{
                         flex: 1,

@@ -147,12 +147,32 @@ export const initSocket = (httpServer) => {
         socket.join(roomName1);
         socket.join(roomName2);
 
+        let latestMechanicLocation = request.mechanicLastLocation || null;
+
+        // If not yet recorded on the request, fallback to assigned mechanic's real profile location
+        if (!latestMechanicLocation && request.mechanicId) {
+          try {
+            const assignedMech = await User.findById(request.mechanicId).select('name mechanicProfile');
+            const coords = assignedMech?.mechanicProfile?.location?.coordinates;
+            if (Array.isArray(coords) && coords.length === 2) {
+              latestMechanicLocation = {
+                latitude: coords[1], // GeoJSON index 1 is latitude
+                longitude: coords[0], // GeoJSON index 0 is longitude
+                updatedAt: assignedMech.mechanicProfile.locationUpdatedAt || request.updatedAt
+              };
+            }
+          } catch (e) {
+            // quiet ignore
+          }
+        }
+
         const responsePayload = {
           success: true,
           requestId: request.requestId,
           id: request._id.toString(),
           status: request.status,
-          mechanicLastLocation: request.mechanicLastLocation || null
+          customerCoordinates: request.customerCoordinates || null,
+          mechanicLastLocation: latestMechanicLocation
         };
 
         if (callback) callback(responsePayload);

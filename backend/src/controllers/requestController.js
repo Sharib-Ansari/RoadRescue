@@ -206,9 +206,22 @@ export const getRequestById = async (req, res, next) => {
       return next(new AppError('Access forbidden to this request', 403));
     }
 
+    const reqJson = request.toJSON ? request.toJSON() : request;
+
+    // If mechanicLastLocation is not explicitly saved on the request document,
+    // convert and provide the assigned mechanic's real MongoDB GeoJSON profile location [lng, lat] -> { latitude, longitude }
+    if (!reqJson.mechanicLastLocation && request.mechanicId?.mechanicProfile?.location?.coordinates?.length === 2) {
+      const coords = request.mechanicId.mechanicProfile.location.coordinates;
+      reqJson.mechanicLastLocation = {
+        latitude: coords[1], // GeoJSON index 1 is latitude
+        longitude: coords[0], // GeoJSON index 0 is longitude
+        updatedAt: request.mechanicId.mechanicProfile.locationUpdatedAt || request.updatedAt
+      };
+    }
+
     res.status(200).json({
       success: true,
-      request
+      request: reqJson
     });
   } catch (error) {
     next(error);

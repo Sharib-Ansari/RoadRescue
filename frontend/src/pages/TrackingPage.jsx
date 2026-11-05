@@ -14,13 +14,18 @@ import {
   MapPin,
   RefreshCw,
   XCircle,
-  Search
+  Search,
+  CheckCircle,
+  Calendar,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout';
 import authApi from '../utils/api';
 import useLiveTracking from '../hooks/useLiveTracking';
 import LiveTrackingMap from '../components/maps/LiveTrackingMap';
 import ErrorBoundary from '../components/common/ErrorBoundary';
+import { formatCurrency, formatDate } from '../utils/helpers';
 
 export const TrackingPage = () => {
   const { requestId } = useParams();
@@ -33,14 +38,14 @@ export const TrackingPage = () => {
 
   // Real-time tracking hook
   const {
-    mechanicLocation,
+    mechanicLocation: socketMechanicLoc,
     requestStatus,
     lastUpdated,
     error: socketError,
     connected
   } = useLiveTracking(requestId);
 
-  // Fetch initial request details
+  // Fetch initial request details directly from MongoDB Atlas
   const fetchRequestDetails = async () => {
     try {
       setLoading(true);
@@ -59,7 +64,7 @@ export const TrackingPage = () => {
     fetchRequestDetails();
   }, [requestId]);
 
-  // Sync status if real-time update arrives
+  // Sync status if real-time update arrives via Socket.IO
   useEffect(() => {
     if (requestStatus && request && request.status !== requestStatus) {
       setRequest((prev) => ({
@@ -116,6 +121,28 @@ export const TrackingPage = () => {
   const isCompleted = currentStatus === 'completed';
   const isRejected = currentStatus === 'rejected';
 
+  // 1. Resolve authentic Customer Breakdown Coordinates from MongoDB
+  const customerLocation = (request.customerCoordinates &&
+    typeof request.customerCoordinates.latitude === 'number' &&
+    typeof request.customerCoordinates.longitude === 'number')
+    ? {
+        latitude: request.customerCoordinates.latitude,
+        longitude: request.customerCoordinates.longitude
+      }
+    : null;
+
+  // 2. Resolve authentic Assigned Mechanic Coordinates
+  // Priority: Socket.IO live broadcast -> Request saved last location -> Mechanic MongoDB profile location [lng, lat]
+  let activeMechanicLoc = socketMechanicLoc || request.mechanicLastLocation;
+  if (!activeMechanicLoc && request.mechanicId?.mechanicProfile?.location?.coordinates?.length === 2) {
+    const coords = request.mechanicId.mechanicProfile.location.coordinates;
+    activeMechanicLoc = {
+      latitude: coords[1], // GeoJSON index 1 is latitude
+      longitude: coords[0], // GeoJSON index 0 is longitude
+      updatedAt: request.mechanicId.mechanicProfile.locationUpdatedAt || request.updatedAt
+    };
+  }
+
   const stages = [
     { key: 'submitted', label: 'Dispatched', desc: 'Request broadcast to network' },
     { key: 'accepted', label: 'Accepted', desc: 'Mechanic confirmed dispatch' },
@@ -126,6 +153,12 @@ export const TrackingPage = () => {
   ];
 
   const currentStageIndex = stages.findIndex((s) => s.key === currentStatus);
+
+  // Extract completion timestamp from status history if recorded
+  const completionHistoryEntry = Array.isArray(request.statusHistory)
+    ? request.statusHistory.slice().reverse().find((h) => h.status === 'completed')
+    : null;
+  const completionTimestamp = completionHistoryEntry?.timestamp || request.updatedAt || request.createdAt;
 
   return (
     <DashboardLayout title={`Tracking #${request.requestId}`}>
@@ -150,14 +183,18 @@ export const TrackingPage = () => {
                 borderRadius: '9999px',
                 fontSize: '13px',
                 fontWeight: 600,
-                background: isRejected
+                background: isCompleted
+                  ? 'rgba(16, 185, 129, 0.15)'
+                  : isRejected
                   ? 'rgba(239, 68, 68, 0.15)'
                   : connected
                   ? 'rgba(16, 185, 129, 0.15)'
                   : 'rgba(234, 179, 8, 0.15)',
-                color: isRejected ? '#ef4444' : connected ? '#10b981' : '#eab308',
+                color: isCompleted ? '#10b981' : isRejected ? '#ef4444' : connected ? '#10b981' : '#eab308',
                 border: `1px solid ${
-                  isRejected
+                  isCompleted
+                    ? 'rgba(16, 185, 129, 0.3)'
+                    : isRejected
                     ? 'rgba(239, 68, 68, 0.3)'
                     : connected
                     ? 'rgba(16, 185, 129, 0.3)'
@@ -165,16 +202,230 @@ export const TrackingPage = () => {
                 }`
               }}
             >
-              <Radio size={14} className={connected && !isRejected ? 'pulse-icon' : ''} />
-              {isRejected ? 'REQUEST DECLINED' : connected ? 'LIVE TELEMETRY' : 'CONNECTING'}
+              {isCompleted ? (
+                <>
+                  <CheckCircle size={14} /> SERVICE RESOLVED
+                </>
+              ) : isRejected ? (
+                <>
+                  <XCircle size={14} /> REQUEST DECLINED
+                </>
+              ) : (
+                <>
+                  <Radio size={14} className={connected ? 'pulse-icon' : ''} />
+                  {connected ? 'LIVE TELEMETRY' : 'CONNECTING'}
+                </>
+              )}
             </span>
 
             <span style={{ fontSize: '13px', color: '#94a3b8' }}>Ticket #{request.requestId}</span>
           </div>
         </div>
 
-        {/* If Rejected: Show dedicated graceful re-selection view */}
-        {isRejected ? (
+        {/* =========================================================================
+            STATE 1: SERVICE COMPLETED SCREEN (Dedicated Premium Experience)
+            ========================================================================= */}
+        {isCompleted ? (
+          <div style={{ maxWidth: '780px', margin: '0 auto' }}>
+            {/* Main Completion Hero Card */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #131b26 0%, #0d121b 100%)',
+                borderRadius: '24px',
+                padding: '48px 32px',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(16, 185, 129, 0.15)',
+                textAlign: 'center',
+                marginBottom: '28px',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
+              {/* Top ambient glow */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '-80px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '260px',
+                  height: '260px',
+                  background: 'radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, transparent 70%)',
+                  borderRadius: '50%',
+                  pointerEvents: 'none'
+                }}
+              />
+
+              {/* Animated Success Checkmark Icon */}
+              <div
+                style={{
+                  width: '84px',
+                  height: '84px',
+                  borderRadius: '50%',
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '2px solid rgba(16, 185, 129, 0.5)',
+                  color: '#10b981',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 24px',
+                  boxShadow: '0 0 35px rgba(16, 185, 129, 0.4)'
+                }}
+              >
+                <CheckCircle2 size={46} strokeWidth={2.5} />
+              </div>
+
+              {/* Headline */}
+              <h1
+                style={{
+                  fontSize: '32px',
+                  fontWeight: 800,
+                  color: '#f8fafc',
+                  marginBottom: '12px',
+                  letterSpacing: '-0.5px'
+                }}
+              >
+                You're Back on the Road!
+              </h1>
+
+              {/* Supporting Message */}
+              <p
+                style={{
+                  fontSize: '16px',
+                  lineHeight: '1.6',
+                  color: '#cbd5e1',
+                  maxWidth: '560px',
+                  margin: '0 auto 32px'
+                }}
+              >
+                Your vehicle assistance has been successfully completed. Thank you for trusting RoadRescue.
+                We hope the rest of your journey is safe and smooth!
+              </p>
+
+              {/* Primary & Secondary Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => navigate('/dashboard')}
+                  className="btn btn-primary"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '12px 28px',
+                    fontSize: '15px',
+                    fontWeight: 700
+                  }}
+                >
+                  Back to Dashboard <ArrowRight size={16} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/dashboard#history')}
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '12px 24px',
+                    fontSize: '15px',
+                    fontWeight: 600
+                  }}
+                >
+                  <Clock size={16} /> View Service History
+                </button>
+              </div>
+            </div>
+
+            {/* Service Summary Card */}
+            <div
+              style={{
+                background: 'var(--card-bg, #1e293b)',
+                borderRadius: '20px',
+                padding: '28px',
+                border: '1px solid var(--border-color, #334155)',
+                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
+              }}
+            >
+              <h3
+                style={{
+                  margin: '0 0 20px',
+                  fontSize: '17px',
+                  fontWeight: 700,
+                  color: '#f8fafc',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <ShieldAlert size={18} style={{ color: '#10b981' }} /> Official Service Summary
+              </h3>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
+                {/* Request Ticket ID */}
+                <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '14px 16px', borderRadius: '12px', border: '1px solid #334155' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Ticket Number</span>
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: '#f8fafc' }}>#{request.requestId}</span>
+                </div>
+
+                {/* Vehicle Model & Registration */}
+                <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '14px 16px', borderRadius: '12px', border: '1px solid #334155' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Assisted Vehicle</span>
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: '#f8fafc' }}>
+                    {request.vehicleName} {request.vehicleReg ? `(${request.vehicleReg})` : ''}
+                  </span>
+                </div>
+
+                {/* Problem Category */}
+                <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '14px 16px', borderRadius: '12px', border: '1px solid #334155' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Reported Problem</span>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#eab308' }}>{request.problemCategory}</span>
+                </div>
+
+                {/* Assigned Specialist */}
+                <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '14px 16px', borderRadius: '12px', border: '1px solid #334155' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Assigned Specialist</span>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>
+                    {request.mechanicName || request.mechanicId?.name || 'RoadRescue Partner'}
+                  </span>
+                  <span style={{ display: 'block', fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                    {request.workshopName || request.mechanicId?.mechanicProfile?.workshopName || 'Certified Workshop'}
+                  </span>
+                </div>
+
+                {/* Breakdown Destination */}
+                <div style={{ gridColumn: 'span 2', background: 'rgba(15, 23, 42, 0.6)', padding: '14px 16px', borderRadius: '12px', border: '1px solid #334155' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Service Location</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#cbd5e1', fontSize: '14px' }}>
+                    <MapPin size={15} style={{ color: '#3b82f6', flexShrink: 0 }} />
+                    <span>{request.location}</span>
+                  </div>
+                </div>
+
+                {/* Completion Date & Time */}
+                <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '14px 16px', borderRadius: '12px', border: '1px solid #334155' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Resolved Date & Time</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>
+                    <Calendar size={14} style={{ color: '#10b981' }} />
+                    <span>{formatDate(completionTimestamp)}</span>
+                  </div>
+                </div>
+
+                {/* Final Service Charge */}
+                <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '14px 16px', borderRadius: '12px', border: '1px solid #334155' }}>
+                  <span style={{ fontSize: '12px', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Final Service Charge</span>
+                  <span style={{ fontSize: '18px', fontWeight: 800, color: '#10b981' }}>
+                    {formatCurrency(request.finalCharge || request.estimatedCharge || 250)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : isRejected ? (
+          /* =========================================================================
+             STATE 2: DECLINED / REJECTED REQUEST SCREEN
+             ========================================================================= */
           <div
             style={{
               background: 'var(--card-bg, #1e293b)',
@@ -237,7 +488,7 @@ export const TrackingPage = () => {
               <Link
                 to="/mechanics"
                 state={{
-                  coordinates: request.customerCoordinates,
+                  coordinates: customerLocation,
                   location: request.location,
                   problemCategory: request.problemCategory,
                   vehicleName: request.vehicleName,
@@ -255,6 +506,9 @@ export const TrackingPage = () => {
             </div>
           </div>
         ) : (
+          /* =========================================================================
+             STATE 3: ACTIVE LIVE TELEMETRY RADAR SCREEN
+             ========================================================================= */
           <>
             {/* Status Pipeline */}
             <div
@@ -334,17 +588,21 @@ export const TrackingPage = () => {
                   message="Map radar could not render. Telemetry updates remain active in the summary panel."
                 >
                   <LiveTrackingMap
-                    customerLocation={request.customerCoordinates}
-                    mechanicLocation={mechanicLocation || request.mechanicLastLocation}
+                    customerLocation={customerLocation}
+                    mechanicLocation={activeMechanicLoc}
                     status={currentStatus}
+                    locationAddress={request.location}
+                    mechanicName={request.mechanicName || request.mechanicId?.name || 'Assigned Mechanic'}
+                    workshopName={request.workshopName || request.mechanicId?.mechanicProfile?.workshopName || 'RoadRescue Partner'}
+                    connected={connected}
                   />
                 </ErrorBoundary>
 
-                {mechanicLocation && (
+                {activeMechanicLoc && (
                   <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: '#94a3b8' }}>
-                    <span>GPS Accuracy: ±{Math.round(mechanicLocation.accuracy || 10)}m</span>
+                    <span>GPS Accuracy: ±{Math.round(activeMechanicLoc.accuracy || 10)}m</span>
                     <span>
-                      Last Telemetry Ping: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : 'Just now'}
+                      Last Telemetry Ping: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : (activeMechanicLoc.updatedAt ? new Date(activeMechanicLoc.updatedAt).toLocaleTimeString() : 'Just now')}
                     </span>
                   </div>
                 )}
@@ -373,8 +631,8 @@ export const TrackingPage = () => {
                             width: '48px',
                             height: '48px',
                             borderRadius: '50%',
-                            background: '#eab308',
-                            color: '#0f172a',
+                            background: '#ef4444',
+                            color: '#ffffff',
                             fontWeight: 700,
                             fontSize: '18px',
                             display: 'flex',
@@ -433,11 +691,9 @@ export const TrackingPage = () => {
                   </p>
 
                   <div style={{ borderTop: '1px solid #334155', paddingTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '13px', color: '#94a3b8' }}>
-                      {isCompleted ? 'Final Service Charge:' : 'Estimated Base Charge:'}
-                    </span>
+                    <span style={{ fontSize: '13px', color: '#94a3b8' }}>Estimated Base Charge:</span>
                     <span style={{ fontSize: '16px', fontWeight: 700, color: '#eab308' }}>
-                      ₹{request.finalCharge || request.estimatedCharge || 250}
+                      ₹{request.estimatedCharge || 250}
                     </span>
                   </div>
                 </div>

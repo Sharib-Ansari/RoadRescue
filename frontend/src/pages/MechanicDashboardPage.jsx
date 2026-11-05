@@ -249,6 +249,9 @@ export default function MechanicDashboardPage() {
     await fetchMechanicData();
 
     if (newStatus === 'Completed') {
+      if (isBroadcasting) {
+        stopBroadcasting();
+      }
       setActionAlert({
         type: 'success',
         message: `Job completed! Service charge added to your earnings balance.`

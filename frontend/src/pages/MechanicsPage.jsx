@@ -695,6 +695,9 @@ export const MechanicsPage = () => {
                           state={{
                             ...(emergencyData || {}),
                             ...(incomingEmergencyState || {}),
+                            coordinates: activeCoordinates || incomingEmergencyState?.coordinates || emergencyData?.customerCoordinates,
+                            location: emergencyData?.location || incomingEmergencyState?.location || '',
+                            problemCategory: emergencyData?.problemCategory || incomingEmergencyState?.problemCategory,
                             mechanic
                           }}
                           className="btn btn-primary btn-sm action-btn-request"

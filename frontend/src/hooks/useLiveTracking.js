@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSocket } from '../context/SocketContext';
 
 /**
  * useLiveTracking Hook
  * Subscribes to real-time mechanic location and status updates for an active request.
+ * Automatically halts telemetry and leaves room when request reaches terminal status (completed, cancelled, rejected).
  */
 export const useLiveTracking = (requestId) => {
   const { socket, connected } = useSocket();
@@ -13,8 +14,13 @@ export const useLiveTracking = (requestId) => {
   const [error, setError] = useState(null);
   const [isJoined, setIsJoined] = useState(false);
 
+  // Keep track of joined state for cleanup
+  const activeRoomRef = useRef(null);
+
   useEffect(() => {
     if (!socket || !connected || !requestId) return;
+
+    activeRoomRef.current = requestId;
 
     // Join tracking room
     socket.emit('join:request', { requestId }, (response) => {
@@ -69,13 +75,24 @@ export const useLiveTracking = (requestId) => {
     socket.on('error', handleError);
 
     return () => {
-      socket.emit('leave:request', { requestId });
+      if (activeRoomRef.current) {
+        socket.emit('leave:request', { requestId: activeRoomRef.current });
+      }
       socket.off('mechanic:location', handleLocationUpdate);
       socket.off('request:status_updated', handleStatusUpdate);
       socket.off('error', handleError);
       setIsJoined(false);
+      activeRoomRef.current = null;
     };
   }, [socket, connected, requestId]);
+
+  // Terminal status guard: when completed, cancelled, or rejected, disconnect from room
+  useEffect(() => {
+    if (['completed', 'cancelled', 'rejected'].includes(requestStatus) && socket && activeRoomRef.current) {
+      socket.emit('leave:request', { requestId: activeRoomRef.current });
+      setIsJoined(false);
+    }
+  }, [requestStatus, socket]);
 
   return {
     mechanicLocation,

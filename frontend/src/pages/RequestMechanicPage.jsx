@@ -10,7 +10,8 @@ import {
   ArrowLeft,
   ShieldCheck,
   FileText,
-  AlertCircle
+  AlertCircle,
+  Navigation
 } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { useVehicles } from '../context/VehicleContext';
@@ -18,6 +19,7 @@ import { storage, STORAGE_KEYS } from '../utils/storage';
 import { generateId, formatCurrency } from '../utils/helpers';
 import StatusBadge from '../components/common/StatusBadge';
 import authApi from '../utils/api';
+import useGeolocation from '../hooks/useGeolocation';
 
 const RequestMechanicPage = () => {
   const { id } = useParams();
@@ -86,6 +88,24 @@ const RequestMechanicPage = () => {
   const [submittedRequest, setSubmittedRequest] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Geolocation integration to ensure verified GPS telemetry
+  const { coordinates: browserCoords, requestLocation, loading: isLocating } = useGeolocation();
+  const [customerCoords, setCustomerCoords] = useState(incomingState.coordinates || null);
+
+  const handleDetectGPS = async () => {
+    try {
+      const coords = await requestLocation();
+      if (coords) {
+        setCustomerCoords(coords);
+        if (!location.trim()) {
+          setLocation(`Breakdown Location (${coords.latitude.toFixed(4)}° N, ${coords.longitude.toFixed(4)}° E)`);
+        }
+      }
+    } catch (err) {
+      alert('Could not acquire GPS: ' + err.message);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -120,7 +140,7 @@ const RequestMechanicPage = () => {
         problemCategory: category,
         description: description || `${serviceType} requested at ${location}`,
         location: location || 'Current Customer Location',
-        customerCoordinates: incomingState.coordinates || undefined,
+        customerCoordinates: customerCoords || incomingState.coordinates || undefined,
         estimatedCharge: mechanic.visitCharge || 250
       });
 
@@ -335,7 +355,28 @@ const RequestMechanicPage = () => {
 
               {/* Location Address */}
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label className="form-label">Breakdown or Service Location Address</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <label className="form-label" style={{ margin: 0 }}>Breakdown or Service Location Address</label>
+                  <button
+                    type="button"
+                    onClick={handleDetectGPS}
+                    disabled={isLocating}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: customerCoords ? '#10b981' : '#3b82f6',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <Navigation size={12} className={isLocating ? 'spin-animation' : ''} />
+                    {isLocating ? 'Detecting GPS...' : customerCoords ? 'GPS Coordinates Attached' : 'Auto-Detect My GPS'}
+                  </button>
+                </div>
                 <input
                   type="text"
                   required
@@ -344,6 +385,11 @@ const RequestMechanicPage = () => {
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                 />
+                {customerCoords && (
+                  <div style={{ fontSize: '11px', color: '#10b981', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <CheckCircle2 size={12} /> Live GPS attached: {customerCoords.latitude.toFixed(4)}° N, {customerCoords.longitude.toFixed(4)}° E
+                  </div>
+                )}
               </div>
 
               {/* Urgency */}
