@@ -23,108 +23,12 @@ import {
 } from 'lucide-react';
 import MechanicDashboardLayout from '../layouts/MechanicDashboardLayout';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
+import useMechanicLocation from '../hooks/useMechanicLocation';
 import { storage } from '../utils/storage';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import authApi from '../utils/api';
 import './MechanicDashboardPage.css';
-
-// Initial realistic incoming mock service requests for mechanics
-const INITIAL_INCOMING_REQUESTS = [
-  {
-    id: 'REQ-INC-201',
-    customerName: 'Aarav Mehta',
-    customerPhone: '+91 98201 12345',
-    vehicleType: 'Car',
-    vehicleModel: 'Hyundai Creta (DL 3C AB 8765)',
-    problemCategory: 'Engine Problem',
-    description: 'Engine stalled with check engine light flashing on the flyover.',
-    location: 'Cyber Hub Phase 2, DLF Cyber City, Gurgaon',
-    distance: 1.8,
-    estimatedCharge: 650,
-    requestedAt: '10 mins ago',
-    status: 'pending'
-  },
-  {
-    id: 'REQ-INC-202',
-    customerName: 'Rohit Deshmukh',
-    customerPhone: '+91 97654 32109',
-    vehicleType: 'Motorcycle/Bike',
-    vehicleModel: 'Royal Enfield Classic 350 (HR 26 DQ 5541)',
-    problemCategory: 'Flat Tyre / Puncture',
-    description: 'Rear tyre punctured near expressway service lane, urgent help needed.',
-    location: 'NH-48 Near Rajiv Chowk Underpass, Gurgaon',
-    distance: 2.4,
-    estimatedCharge: 350,
-    requestedAt: '18 mins ago',
-    status: 'pending'
-  },
-  {
-    id: 'REQ-INC-203',
-    customerName: 'Priya Sundaram',
-    customerPhone: '+91 98450 67890',
-    vehicleType: 'Car',
-    vehicleModel: 'Honda City i-VTEC (UP 16 AX 9921)',
-    problemCategory: 'Battery Failure',
-    description: 'Car won’t crank, clicking sound from starter relay. Need jumpstart.',
-    location: 'Golf Course Road, Sector 54, Gurgaon',
-    distance: 3.5,
-    estimatedCharge: 450,
-    requestedAt: '25 mins ago',
-    status: 'pending'
-  }
-];
-
-// Initial active job undergoing service
-const INITIAL_ACTIVE_JOBS = [
-  {
-    id: 'JOB-ACT-101',
-    customerName: 'Vikram Sethi',
-    customerPhone: '+91 98111 44556',
-    vehicleType: 'SUV',
-    vehicleModel: 'Mahindra XUV700 (DL 8C AD 3311)',
-    problemCategory: 'Brake Problem',
-    description: 'Brake pedal feels spongy and warning message displayed on dashboard.',
-    location: 'Sohna Road, Near Subhash Chowk, Gurgaon',
-    distance: 2.1,
-    estimatedCharge: 1200,
-    status: 'On The Way', // 'Accepted', 'On The Way', 'Arrived', 'Repair In Progress', 'Completed'
-    acceptedAt: '2024-01-20T10:15:00Z'
-  }
-];
-
-// Initial completed job records
-const INITIAL_COMPLETED_JOBS = [
-  {
-    id: 'JOB-CMP-091',
-    customerName: 'Neha Kapoor',
-    vehicleModel: 'Maruti Suzuki Swift (HR 51 BZ 2234)',
-    servicePerformed: 'Flat Tyre Replacement & Wheel Balancing',
-    amountEarned: 550,
-    completedAt: 'Today, 09:30 AM',
-    status: 'Completed',
-    rating: 5.0
-  },
-  {
-    id: 'JOB-CMP-090',
-    customerName: 'Sunil Bhatia',
-    vehicleModel: 'Tata Nexon EV (DL 10 CE 1109)',
-    servicePerformed: '12V Auxiliary Battery Boost & Diagnostics',
-    amountEarned: 750,
-    completedAt: 'Yesterday, 04:45 PM',
-    status: 'Completed',
-    rating: 4.9
-  },
-  {
-    id: 'JOB-CMP-089',
-    customerName: 'Kunal Singhania',
-    vehicleModel: 'Kia Seltos (HR 26 CX 8802)',
-    servicePerformed: 'Coolant Hose Leak Repair & Top-up',
-    amountEarned: 1400,
-    completedAt: '28 Jan 2024, 02:15 PM',
-    status: 'Completed',
-    rating: 4.8
-  }
-];
 
 const JOB_STATUSES = [
   'Accepted',
@@ -137,36 +41,35 @@ const JOB_STATUSES = [
 export default function MechanicDashboardPage() {
   const { user } = useAuth();
 
-  // Availability state (persisted in localStorage & MongoDB)
+  // Availability state
   const [isOnline, setIsOnline] = useState(() => {
     if (user?.mechanicProfile?.isAvailable !== undefined) {
       return user.mechanicProfile.isAvailable;
     }
-    const saved = storage.get('roadrescue_mechanic_online');
-    return saved !== null ? saved : true;
+    return true;
   });
 
-  // State for incoming requests
-  const [incomingRequests, setIncomingRequests] = useState(() => {
-    return storage.get('roadrescue_mechanic_incoming') || INITIAL_INCOMING_REQUESTS;
-  });
+  // Real requests from MongoDB Atlas
+  const [incomingRequests, setIncomingRequests] = useState([]);
+  const [activeJobs, setActiveJobs] = useState([]);
+  const [completedJobs, setCompletedJobs] = useState([]);
 
-  // State for active jobs
-  const [activeJobs, setActiveJobs] = useState(() => {
-    return storage.get('roadrescue_mechanic_active') || INITIAL_ACTIVE_JOBS;
-  });
-
-  // State for completed jobs
-  const [completedJobs, setCompletedJobs] = useState(() => {
-    return storage.get('roadrescue_mechanic_completed') || INITIAL_COMPLETED_JOBS;
+  // Real statistics from MongoDB Atlas
+  const [dbStats, setDbStats] = useState({
+    totalRequests: 0,
+    pendingRequests: 0,
+    acceptedJobs: 0,
+    completedJobs: 0,
+    totalEarnings: 0
   });
 
   // Action feedback banner
   const [actionAlert, setActionAlert] = useState(null);
 
-  // Fetch real requests from MongoDB
+  // Fetch real requests and live statistics from MongoDB Atlas
   const fetchMechanicData = async () => {
     try {
+      // 1. Fetch real requests from MongoDB
       const res = await authApi.getMyRequests();
       if (res?.success && Array.isArray(res.requests)) {
         const dbIncoming = [];
@@ -184,7 +87,7 @@ export default function MechanicDashboardPage() {
             problemCategory: r.problemCategory,
             description: r.description || 'Assistance requested',
             location: r.location,
-            distance: 2.1,
+            customerCoordinates: r.customerCoordinates,
             estimatedCharge: r.estimatedCharge || 250,
             requestedAt: new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             status: r.status === 'on_the_way' ? 'On The Way' : (r.status === 'repair_in_progress' ? 'Repair In Progress' : r.status.charAt(0).toUpperCase() + r.status.slice(1)),
@@ -208,41 +111,71 @@ export default function MechanicDashboardPage() {
           }
         });
 
-        if (dbIncoming.length > 0) setIncomingRequests(dbIncoming);
-        if (dbActive.length > 0) setActiveJobs(dbActive);
-        if (dbCompleted.length > 0) setCompletedJobs(dbCompleted);
+        setIncomingRequests(dbIncoming);
+        setActiveJobs(dbActive);
+        setCompletedJobs(dbCompleted);
+      }
+
+      // 2. Fetch real aggregated stats from MongoDB Atlas
+      const statsRes = await authApi.getMechanicDashboardStats();
+      if (statsRes?.success && statsRes.stats) {
+        setDbStats(statsRes.stats);
       }
     } catch (err) {
-      console.warn('Could not fetch requests from backend API, using local state:', err.message);
+      console.warn('Could not fetch data from backend API:', err.message);
     }
   };
+
+  const { socket, connected: socketConnected } = useSocket();
+
+  // Find active job if any
+  const activeDbJob = activeJobs.find(
+    (j) => j.isDbRecord || (!j.id.startsWith('JOB-') && !j.id.startsWith('REQ-'))
+  );
+  const activeRequestId = activeDbJob ? (activeDbJob.dbId || activeDbJob.id) : null;
+
+  // Real-time GPS broadcasting hook
+  const {
+    isBroadcasting,
+    currentLocation,
+    broadcastError,
+    startBroadcasting,
+    stopBroadcasting
+  } = useMechanicLocation(activeRequestId);
+
+  // Listen for real-time incoming requests dispatched across network
+  useEffect(() => {
+    if (!socket || !socketConnected) return;
+
+    const handleNewRequest = (data) => {
+      fetchMechanicData();
+      setActionAlert({
+        type: 'info',
+        message: `🚨 NEW SOS DISPATCH: ${data.vehicleName} reported ${data.problemCategory} near ${data.location}!`
+      });
+    };
+
+    const handleStatusChanged = () => {
+      fetchMechanicData();
+    };
+
+    socket.on('request:available', handleNewRequest);
+    socket.on('request:status_updated', handleStatusChanged);
+
+    return () => {
+      socket.off('request:available', handleNewRequest);
+      socket.off('request:status_updated', handleStatusChanged);
+    };
+  }, [socket, socketConnected]);
 
   useEffect(() => {
     fetchMechanicData();
   }, []);
 
-  // Sync state changes with localStorage
-  useEffect(() => {
-    storage.set('roadrescue_mechanic_online', isOnline);
-  }, [isOnline]);
-
-  useEffect(() => {
-    storage.set('roadrescue_mechanic_incoming', incomingRequests);
-  }, [incomingRequests]);
-
-  useEffect(() => {
-    storage.set('roadrescue_mechanic_active', activeJobs);
-  }, [activeJobs]);
-
-  useEffect(() => {
-    storage.set('roadrescue_mechanic_completed', completedJobs);
-  }, [completedJobs]);
-
   const toggleAvailability = async () => {
     const nextState = !isOnline;
     setIsOnline(nextState);
 
-    // Persist to MongoDB
     try {
       await authApi.updateAvailability(nextState);
     } catch (err) {
@@ -260,26 +193,17 @@ export default function MechanicDashboardPage() {
 
   // Accept incoming request
   const handleAcceptRequest = async (request) => {
-    // 1. If it is a real DB record, update status on backend
     const targetId = request.dbId || request.id;
     try {
-      if (!targetId.startsWith('REQ-')) {
-        await authApi.updateRequestStatus(targetId, 'accepted', 'Mechanic accepted the request');
-      }
+      await authApi.updateRequestStatus(targetId, 'accepted', 'Mechanic accepted the request');
     } catch (err) {
       console.warn('API error accepting request:', err.message);
+      alert(`Could not accept request: ${err.message}`);
+      return;
     }
 
-    // Remove from incoming
-    setIncomingRequests((prev) => prev.filter((r) => r.id !== request.id));
-
-    // Add to active jobs
-    const newJob = {
-      ...request,
-      status: 'Accepted',
-      acceptedAt: new Date().toISOString()
-    };
-    setActiveJobs((prev) => [newJob, ...prev]);
+    setIncomingRequests((prev) => prev.filter((r) => r.id !== request.id && r.dbId !== targetId));
+    await fetchMechanicData();
 
     setActionAlert({
       type: 'success',
@@ -289,57 +213,48 @@ export default function MechanicDashboardPage() {
   };
 
   // Reject incoming request
-  const handleRejectRequest = (requestId) => {
-    setIncomingRequests((prev) => prev.filter((r) => r.id !== requestId));
+  const handleRejectRequest = async (requestOrId) => {
+    const targetId = typeof requestOrId === 'string' ? requestOrId : (requestOrId.dbId || requestOrId.id);
+    try {
+      await authApi.updateRequestStatus(targetId, 'rejected', 'Declined by technician');
+    } catch (err) {
+      console.warn('API error declining request:', err.message);
+    }
+
+    setIncomingRequests((prev) => prev.filter((r) => r.id !== targetId && r.dbId !== targetId));
+    await fetchMechanicData();
+
     setActionAlert({
       type: 'info',
-      message: 'Request declined and passed to the next available workshop partner.'
+      message: 'Request declined. The customer has been notified and can select another specialist.'
     });
-    setTimeout(() => setActionAlert(null), 3000);
+    setTimeout(() => setActionAlert(null), 3500);
   };
 
   // Advance or set job status
   const handleUpdateJobStatus = async (jobId, newStatus) => {
-    const job = activeJobs.find((j) => j.id === jobId);
+    const job = activeJobs.find((j) => j.id === jobId || j.dbId === jobId);
     if (!job) return;
 
-    // 1. Sync with backend API
     const targetId = job.dbId || job.id;
     try {
-      if (!targetId.startsWith('JOB-') && !targetId.startsWith('REQ-')) {
-        const backendStatus = newStatus.toLowerCase().replace(/\s+/g, '_');
-        await authApi.updateRequestStatus(targetId, backendStatus, `Milestone updated to ${newStatus}`);
-      }
+      const backendStatus = newStatus.toLowerCase().replace(/\s+/g, '_');
+      await authApi.updateRequestStatus(targetId, backendStatus, `Milestone updated to ${newStatus}`);
     } catch (err) {
       console.warn('API error updating status:', err.message);
+      alert(`Could not update status: ${err.message}`);
+      return;
     }
 
+    await fetchMechanicData();
+
     if (newStatus === 'Completed') {
-      // Remove from active
-      setActiveJobs((prev) => prev.filter((j) => j.id !== jobId));
-
-      // Add to completed jobs
-      const completedEntry = {
-        id: job.id.replace('JOB-ACT', 'JOB-CMP').replace('REQ-INC', 'JOB-CMP'),
-        customerName: job.customerName,
-        vehicleModel: job.vehicleModel,
-        servicePerformed: `${job.problemCategory} Resolution & Testing`,
-        amountEarned: job.estimatedCharge,
-        completedAt: 'Just now',
-        status: 'Completed',
-        rating: 5.0
-      };
-      setCompletedJobs((prev) => [completedEntry, ...prev]);
-
       setActionAlert({
         type: 'success',
-        message: `Job completed! Earned ${formatCurrency(job.estimatedCharge)} added to your earnings balance.`
+        message: `Job completed! Service charge added to your earnings balance.`
       });
       setTimeout(() => setActionAlert(null), 5000);
     } else {
-      setActiveJobs((prev) =>
-        prev.map((j) => (j.id === jobId ? { ...j, status: newStatus } : j))
-      );
       setActionAlert({
         type: 'info',
         message: `Job status updated to: ${newStatus}`
@@ -348,9 +263,13 @@ export default function MechanicDashboardPage() {
     }
   };
 
-  // Computed statistics
-  const totalEarnings = completedJobs.reduce((acc, job) => acc + (Number(job.amountEarned) || 0), 4500);
-  const totalRequestsCount = incomingRequests.length + activeJobs.length + completedJobs.length + 12;
+  // Accurate statistics from MongoDB database
+  const totalEarnings = dbStats.totalEarnings !== undefined
+    ? dbStats.totalEarnings
+    : completedJobs.reduce((acc, job) => acc + (Number(job.amountEarned) || 0), 0);
+  const totalRequestsCount = dbStats.totalRequests !== undefined
+    ? dbStats.totalRequests
+    : (incomingRequests.length + activeJobs.length + completedJobs.length);
 
   const getVehicleIcon = (type = '') => {
     const t = type.toLowerCase();
@@ -420,6 +339,72 @@ export default function MechanicDashboardPage() {
           </div>
         </div>
 
+        {/* Real-time GPS Telemetry Broadcaster Card */}
+        <div style={{
+          background: 'var(--card-bg, #1e293b)',
+          borderRadius: '16px',
+          padding: '20px',
+          marginBottom: '24px',
+          border: '1px solid var(--border-color, #334155)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <span style={{
+                display: 'inline-block',
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                background: isBroadcasting ? '#10b981' : '#64748b'
+              }} />
+              <h3 style={{ margin: 0, fontSize: '16px', color: '#f8fafc', fontWeight: 600 }}>
+                Live GPS Location Radar: {isBroadcasting ? 'Broadcasting Active' : 'Idle'}
+              </h3>
+            </div>
+            <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8' }}>
+              {isBroadcasting
+                ? `Transmitting high-precision coordinates to active customer • Accuracy: ±${Math.round(currentLocation?.accuracy || 10)}m`
+                : 'Share your vehicle GPS location in real-time with customers when en route.'}
+            </p>
+            {currentLocation && isBroadcasting && (
+              <div style={{ marginTop: '6px', fontSize: '12px', color: '#cbd5e1' }}>
+                Lat: {currentLocation.latitude.toFixed(5)}° N, Lng: {currentLocation.longitude.toFixed(5)}° E
+              </div>
+            )}
+            {broadcastError && (
+              <div style={{ marginTop: '6px', fontSize: '12px', color: '#ef4444' }}>
+                {broadcastError}
+              </div>
+            )}
+          </div>
+
+          <div>
+            {isBroadcasting ? (
+              <button
+                type="button"
+                onClick={stopBroadcasting}
+                className="btn btn-outline"
+                style={{ color: '#ef4444', borderColor: '#ef4444', fontSize: '13px', padding: '8px 16px' }}
+              >
+                Stop GPS Broadcast
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={startBroadcasting}
+                className="btn btn-primary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', padding: '8px 16px' }}
+              >
+                <Navigation size={15} /> Start Live GPS Sharing
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* =========================================================
             C. DASHBOARD STATISTICS
            ========================================================= */}
@@ -463,7 +448,7 @@ export default function MechanicDashboardPage() {
             </div>
             <div className="stat-content">
               <span className="stat-label">Completed Jobs</span>
-              <span className="stat-value">{completedJobs.length + 18}</span>
+              <span className="stat-value">{dbStats.completedJobs !== undefined ? dbStats.completedJobs : completedJobs.length}</span>
               <span className="stat-meta">100% resolution rate</span>
             </div>
           </div>
@@ -476,7 +461,7 @@ export default function MechanicDashboardPage() {
               <span className="stat-label">Total Earnings</span>
               <span className="stat-value earnings-val">{formatCurrency(totalEarnings)}</span>
               <span className="stat-meta positive">
-                <TrendingUp size={13} /> +18.4% this week
+                <TrendingUp size={13} /> Verified direct earnings
               </span>
             </div>
           </div>

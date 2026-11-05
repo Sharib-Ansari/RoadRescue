@@ -43,13 +43,6 @@ const PROBLEM_CATEGORIES = [
   { id: 'Other Problem', label: 'Other Problem', icon: HelpCircle, desc: 'Lockout, towing, general breakdown' }
 ];
 
-const QUICK_LOCATIONS = [
-  'NH-48 Expressway, Sector 29 Exit, Gurgaon',
-  'DLF Cyber City, Phase 2, Gurgaon',
-  'Outer Ring Road, Near Bellandur, Bengaluru',
-  'Western Express Highway, Andheri East, Mumbai'
-];
-
 export const EmergencyPage = () => {
   const navigate = useNavigate();
   const { vehicles, selectedVehicle } = useVehicles();
@@ -57,6 +50,7 @@ export const EmergencyPage = () => {
   const [selectedProblem, setSelectedProblem] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
+  const [detectedCoords, setDetectedCoords] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
   const [locationSuccess, setLocationSuccess] = useState(false);
   const [errors, setErrors] = useState({});
@@ -90,9 +84,10 @@ export const EmergencyPage = () => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
+        setDetectedCoords({ latitude, longitude });
         const latFormatted = latitude.toFixed(4);
         const lngFormatted = longitude.toFixed(4);
-        const detectedAddress = `Near NH-48 Highway, Sector 29 (${latFormatted}° N, ${lngFormatted}° E)`;
+        const detectedAddress = `Near Breakdown Location (${latFormatted}° N, ${lngFormatted}° E)`;
         
         setLocation(detectedAddress);
         setLocationSuccess(true);
@@ -134,8 +129,8 @@ export const EmergencyPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Submit Handler
-  const handleSubmit = async (e) => {
+  // Submit Handler: Validates and transitions to mechanic discovery
+  const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -145,59 +140,44 @@ export const EmergencyPage = () => {
 
     setIsSubmitting(true);
 
-    let backendRequestId = null;
-
-    // Send real emergency request to backend
-    try {
-      const response = await authApi.createRequest({
-        vehicleId: selectedVehicle?.id && !selectedVehicle.id.startsWith('veh_') ? selectedVehicle.id : undefined,
-        vehicleName: `${selectedVehicle.brand || selectedVehicle.make} ${selectedVehicle.model}`,
-        vehicleReg: selectedVehicle.registrationNumber || '',
-        problemCategory: selectedProblem,
-        description: description.trim() || `Emergency assistance needed for ${selectedProblem}`,
-        location: location.trim(),
-        estimatedCharge: 250
-      });
-
-      if (response?.success && response.request) {
-        backendRequestId = response.request.requestId || response.request.id;
-      }
-    } catch (err) {
-      console.warn('Backend emergency request failed, falling back to local simulation:', err.message);
-    }
-
-    const emergencyRequest = {
-      id: backendRequestId || generateId(),
-      vehicleId: selectedVehicle.id,
+    const emergencyDraft = {
+      vehicleId: selectedVehicle?.id,
       vehicleName: `${selectedVehicle.brand || selectedVehicle.make} ${selectedVehicle.model}`,
-      vehicleReg: selectedVehicle.registrationNumber,
+      vehicleReg: selectedVehicle.registrationNumber || '',
       problemCategory: selectedProblem,
-      description: description.trim(),
+      description: description.trim() || `Emergency assistance needed for ${selectedProblem}`,
       location: location.trim(),
-      timestamp: new Date().toISOString(),
-      status: 'searching'
+      customerCoordinates: detectedCoords,
+      timestamp: new Date().toISOString()
     };
 
-    // Save to local storage as specified in requirements
-    storage.set(STORAGE_KEYS.EMERGENCY_DATA, emergencyRequest);
-    storage.set(STORAGE_KEYS.ACTIVE_REQUEST, emergencyRequest);
+    // Store in storage for session persistence
+    storage.set(STORAGE_KEYS.EMERGENCY_DATA, emergencyDraft);
 
     setTimeout(() => {
       setIsSubmitting(false);
-      navigate('/mechanics');
-    }, 300);
+      navigate('/mechanics', {
+        state: {
+          coordinates: detectedCoords,
+          selectedVehicle,
+          problemCategory: selectedProblem,
+          description: emergencyDraft.description,
+          location: emergencyDraft.location
+        }
+      });
+    }, 200);
   };
 
   return (
     <DashboardLayout title="Emergency Assistance">
       <div className="emergency-page">
-        {/* Prototype Announcement Banner */}
-        <div className="prototype-banner">
+        {/* Rapid SOS Assistance Status Banner */}
+        <div className="prototype-banner" style={{ borderColor: 'rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.08)' }}>
           <div className="banner-content">
             <span className="banner-pulse-dot" />
-            <AlertTriangle className="banner-icon" size={18} />
-            <span className="banner-text">
-              DEMO MODE - This is a frontend prototype. Submitting a request will simulate finding nearby mechanics.
+            <AlertTriangle className="banner-icon" size={18} style={{ color: '#ef4444' }} />
+            <span className="banner-text" style={{ color: '#f8fafc' }}>
+              EMERGENCY ASSISTANCE MODE - Fill in your breakdown details and location to discover live verified technicians nearby.
             </span>
           </div>
         </div>
@@ -449,27 +429,6 @@ export const EmergencyPage = () => {
                     <span>Location locked via Browser GPS</span>
                   </div>
                 )}
-
-                {/* Preset landmark recommendations */}
-                <div className="preset-locations-wrap">
-                  <span className="preset-label">Demo locations:</span>
-                  <div className="preset-chips">
-                    {QUICK_LOCATIONS.map((loc) => (
-                      <button
-                        type="button"
-                        key={loc}
-                        onClick={() => {
-                          setLocation(loc);
-                          setLocationSuccess(false);
-                          setErrors(prev => ({ ...prev, location: null }));
-                        }}
-                        className="preset-chip"
-                      >
-                        {loc}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               {/* Submit CTA */}

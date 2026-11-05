@@ -49,12 +49,33 @@ const seedDemoAccounts = async () => {
             'Brake Service',
             'Vehicle Towing'
           ],
-          serviceArea: 'Sector 14, Gurgaon / Delhi NCR'
+          serviceArea: 'Sector 14, Gurgaon / Delhi NCR',
+          isAvailable: true,
+          location: {
+            type: 'Point',
+            coordinates: [77.2167, 28.6328] // [lng, lat] Delhi NCR
+          },
+          locationUpdatedAt: new Date()
         }
       });
       console.log('✅ Demo mechanic created: mechanic@roadrescue.in');
     } else {
-      console.log('ℹ️ Demo mechanic already exists');
+      // Ensure existing demo mechanic has location
+      if (!mechanic.mechanicProfile?.location?.coordinates?.length) {
+        mechanic.mechanicProfile = {
+          ...mechanic.mechanicProfile,
+          location: {
+            type: 'Point',
+            coordinates: [77.2167, 28.6328]
+          },
+          locationUpdatedAt: new Date(),
+          isAvailable: true
+        };
+        await mechanic.save();
+        console.log('ℹ️ Updated existing demo mechanic with coordinates');
+      } else {
+        console.log('ℹ️ Demo mechanic already exists with coordinates');
+      }
     }
 
     console.log('🎉 Seeding completed successfully!');

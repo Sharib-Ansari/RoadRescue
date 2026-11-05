@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Wrench,
   CheckCircle2,
@@ -13,7 +13,6 @@ import {
   AlertCircle
 } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout';
-import { mechanics } from '../data/mechanics';
 import { useVehicles } from '../context/VehicleContext';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { generateId, formatCurrency } from '../utils/helpers';
@@ -23,10 +22,23 @@ import authApi from '../utils/api';
 const RequestMechanicPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const routerLocation = useLocation();
+  const incomingState = routerLocation.state || {};
   const { vehicles, selectedVehicle } = useVehicles();
 
   const [mechanic, setMechanic] = useState(() => {
-    return mechanics.find((m) => m.id === id) || mechanics[0];
+    if (incomingState?.mechanic && (incomingState.mechanic.id === id || incomingState.mechanic._id === id)) {
+      return incomingState.mechanic;
+    }
+    return {
+      id,
+      name: 'Loading Mechanic...',
+      workshopName: 'RoadRescue Partner',
+      phone: '+91 98765 12345',
+      services: ['General Inspection', 'Engine Diagnostics'],
+      visitCharge: 250,
+      location: 'Local Region'
+    };
   });
 
   useEffect(() => {
@@ -41,31 +53,36 @@ const RequestMechanicPage = () => {
             phone: res.mechanic.phone || '+91 98765 12345',
             services: res.mechanic.mechanicProfile?.services || ['General Inspection', 'Engine Diagnostics'],
             visitCharge: 250,
-            location: res.mechanic.mechanicProfile?.serviceArea || 'Delhi NCR / Gurgaon'
+            location: res.mechanic.mechanicProfile?.serviceArea || 'Local Region'
           });
         }
       } catch (err) {
-        // Use static mechanic
+        console.warn('Could not fetch mechanic details:', err.message);
       }
     };
-    if (id && !id.startsWith('mech_')) {
+    if (id) {
       fetchMech();
     }
   }, [id]);
 
-  const [serviceType, setServiceType] = useState('General Inspection');
+  const [serviceType, setServiceType] = useState(() => {
+    if (incomingState.problemCategory) return incomingState.problemCategory;
+    return 'General Inspection';
+  });
 
   useEffect(() => {
-    if (mechanic?.services?.length) {
+    if (!incomingState.problemCategory && mechanic?.services?.length) {
       setServiceType(mechanic.services[0]);
     }
-  }, [mechanic]);
+  }, [mechanic, incomingState.problemCategory]);
 
-  const [vehicleId, setVehicleId] = useState(selectedVehicle?.id || (vehicles[0]?.id || ''));
-  const [location, setLocation] = useState('Cyber City DLF Phase 2, Gurgaon, Haryana');
+  const [vehicleId, setVehicleId] = useState(
+    incomingState.vehicle?.id || incomingState.selectedVehicle?.id || selectedVehicle?.id || (vehicles[0]?.id || '')
+  );
+  const [location, setLocation] = useState(incomingState.location || '');
   const [urgency, setUrgency] = useState('immediate'); // 'immediate' or 'scheduled'
   const [scheduledTime, setScheduledTime] = useState('');
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(incomingState.description || '');
   const [submittedRequest, setSubmittedRequest] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -73,11 +90,11 @@ const RequestMechanicPage = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const chosenVehicle = vehicles.find((v) => v.id === vehicleId) || selectedVehicle;
+    const chosenVehicle = vehicles.find((v) => v.id === vehicleId) || incomingState.vehicle || incomingState.selectedVehicle || selectedVehicle;
     const vehicleDisplayName = chosenVehicle
       ? `${chosenVehicle.make || chosenVehicle.brand} ${chosenVehicle.model}`
       : 'Registered Vehicle';
-    const vehicleRegNumber = chosenVehicle?.registrationNumber || 'DL 01 AB 1234';
+    const vehicleRegNumber = chosenVehicle?.registrationNumber || '';
 
     // Map serviceType to valid problemCategory
     let category = 'Other Problem';
@@ -91,27 +108,27 @@ const RequestMechanicPage = () => {
     else if (stLower.includes('clutch') || stLower.includes('chain')) category = 'Chain / Clutch Problem';
 
     let backendRequestId = null;
-    let backendRecord = null;
 
-    // 1. Send to real MongoDB backend
+    // 1. Send targeted request to MongoDB backend
     try {
       const response = await authApi.createRequest({
-        mechanicId: mechanic.id && !mechanic.id.startsWith('mech_') ? mechanic.id : undefined,
+        requestedMechanicId: mechanic.id,
+        mechanicId: mechanic.id,
         vehicleId: chosenVehicle?.id && !chosenVehicle.id.startsWith('veh_') ? chosenVehicle.id : undefined,
         vehicleName: vehicleDisplayName,
         vehicleReg: vehicleRegNumber,
         problemCategory: category,
         description: description || `${serviceType} requested at ${location}`,
-        location,
+        location: location || 'Current Customer Location',
+        customerCoordinates: incomingState.coordinates || undefined,
         estimatedCharge: mechanic.visitCharge || 250
       });
 
       if (response?.success && response.request) {
         backendRequestId = response.request.requestId || response.request.id;
-        backendRecord = response.request;
       }
     } catch (err) {
-      console.warn('Backend service request failed, falling back to local simulation:', err.message);
+      console.warn('Backend service request failed:', err.message);
     }
 
     const newRequest = {
@@ -220,12 +237,12 @@ const RequestMechanicPage = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
-              <Link to="/dashboard" className="btn btn-primary">
-                Return to Dashboard
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              <Link to={`/tracking/${submittedRequest.id}`} className="btn btn-primary">
+                Track Dispatch Live
               </Link>
-              <Link to="/mechanics" className="btn btn-secondary">
-                Book Another Service
+              <Link to="/dashboard" className="btn btn-secondary">
+                Return to Dashboard
               </Link>
             </div>
           </div>

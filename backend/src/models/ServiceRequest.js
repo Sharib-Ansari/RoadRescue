@@ -33,11 +33,22 @@ const serviceRequestSchema = new mongoose.Schema(
       required: [true, 'Customer is required'],
       index: true
     },
+    requestedMechanicId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      index: true
+    },
     mechanicId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       index: true
     },
+    rejectedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      }
+    ],
     mechanicName: {
       type: String,
       default: ''
@@ -83,6 +94,15 @@ const serviceRequestSchema = new mongoose.Schema(
       required: [true, 'Service location is required'],
       trim: true
     },
+    customerCoordinates: {
+      latitude: { type: Number },
+      longitude: { type: Number }
+    },
+    mechanicLastLocation: {
+      latitude: { type: Number },
+      longitude: { type: Number },
+      updatedAt: { type: Date }
+    },
     estimatedCharge: {
       type: Number,
       default: 250
@@ -92,7 +112,7 @@ const serviceRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['submitted', 'accepted', 'on_the_way', 'arrived', 'repair_in_progress', 'completed', 'cancelled'],
+      enum: ['submitted', 'accepted', 'on_the_way', 'arrived', 'repair_in_progress', 'completed', 'cancelled', 'rejected'],
       default: 'submitted',
       index: true
     },

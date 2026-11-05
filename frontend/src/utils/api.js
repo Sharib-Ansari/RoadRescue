@@ -72,6 +72,7 @@ export const authApi = {
   // Dashboards
   getCustomerDashboard: () => request('/customer/dashboard', { method: 'GET' }),
   getMechanicDashboard: () => request('/mechanic/dashboard', { method: 'GET' }),
+  getMechanicDashboardStats: () => request('/mechanics/dashboard/stats', { method: 'GET' }),
 
   // Vehicles
   getVehicles: () => request('/vehicles', { method: 'GET' }),
@@ -88,6 +89,10 @@ export const authApi = {
     method: 'PATCH',
     body: { status, note, finalCharge }
   }),
+  reassignRequest: (id, mechanicId) => request(`/requests/${id}/reassign`, {
+    method: 'PATCH',
+    body: { mechanicId }
+  }),
 
   // Mechanics
   getMechanics: (params = {}) => {
@@ -98,7 +103,21 @@ export const authApi = {
     const qs = query.toString();
     return request(`/mechanics${qs ? `?${qs}` : ''}`, { method: 'GET' });
   },
-  getMechanicById: (id) => request(`/mechanics/${id}`, { method: 'GET' })
+  getMechanicById: (id) => request(`/mechanics/${id}`, { method: 'GET' }),
+  getNearbyMechanics: (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.latitude !== undefined) query.append('latitude', params.latitude);
+    if (params.longitude !== undefined) query.append('longitude', params.longitude);
+    if (params.radiusKm) query.append('radiusKm', params.radiusKm);
+    if (params.service && params.service !== 'all') query.append('service', params.service);
+    if (params.limit) query.append('limit', params.limit);
+    const qs = query.toString();
+    return request(`/mechanics/nearby${qs ? `?${qs}` : ''}`, { method: 'GET' });
+  },
+  updateMechanicLocation: (locationData) => request('/mechanics/location', {
+    method: 'PATCH',
+    body: locationData
+  })
 };
 
 export default authApi;

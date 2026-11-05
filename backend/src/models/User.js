@@ -1,6 +1,37 @@
 import mongoose from 'mongoose';
 import argon2 from 'argon2';
 
+const pointSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ['Point'],
+      required: true,
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      required: true,
+      validate: {
+        validator: function (val) {
+          return (
+            Array.isArray(val) &&
+            val.length === 2 &&
+            typeof val[0] === 'number' &&
+            val[0] >= -180 &&
+            val[0] <= 180 &&
+            typeof val[1] === 'number' &&
+            val[1] >= -90 &&
+            val[1] <= 90
+          );
+        },
+        message: 'Coordinates must be [longitude (-180 to 180), latitude (-90 to 90)]'
+      }
+    }
+  },
+  { _id: false }
+);
+
 const mechanicProfileSchema = new mongoose.Schema(
   {
     workshopName: {
@@ -25,6 +56,16 @@ const mechanicProfileSchema = new mongoose.Schema(
     isAvailable: {
       type: Boolean,
       default: true
+    },
+    location: {
+      type: pointSchema,
+      default: undefined
+    },
+    locationUpdatedAt: {
+      type: Date
+    },
+    lastLocationAccuracy: {
+      type: Number
     }
   },
   { _id: false }
@@ -117,6 +158,9 @@ const userSchema = new mongoose.Schema(
     }
   }
 );
+
+// 2dsphere index for geospatial mechanic discovery
+userSchema.index({ 'mechanicProfile.location': '2dsphere' }, { sparse: true });
 
 // Validate mechanic profile fields if role is mechanic
 userSchema.pre('validate', function (next) {

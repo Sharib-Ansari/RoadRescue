@@ -4,7 +4,8 @@ import {
   getMyRequests,
   getActiveRequest,
   getRequestById,
-  updateRequestStatus
+  updateRequestStatus,
+  reassignRequest
 } from '../controllers/requestController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 
@@ -18,9 +19,10 @@ router.route('/')
 
 router.get('/active', getActiveRequest);
 
+router.patch('/:id/reassign', reassignRequest);
+router.patch('/:id/status', updateRequestStatus);
+
 router.route('/:id')
   .get(getRequestById);
-
-router.patch('/:id/status', updateRequestStatus);
 
 export default router;

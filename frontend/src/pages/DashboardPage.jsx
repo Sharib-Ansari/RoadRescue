@@ -15,7 +15,6 @@ import {
 import DashboardLayout from '../layouts/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
 import { useVehicles } from '../context/VehicleContext';
-import { mockServiceHistory } from '../data/mockRequests';
 import StatusBadge from '../components/common/StatusBadge';
 import { formatDate, formatCurrency } from '../utils/helpers';
 import authApi from '../utils/api';
@@ -24,7 +23,8 @@ const DashboardPage = () => {
   const { user } = useAuth();
   const { vehicles, selectedVehicle } = useVehicles();
 
-  const [serviceRequests, setServiceRequests] = useState(mockServiceHistory);
+  const [serviceRequests, setServiceRequests] = useState([]);
+  const [activeOngoingRequest, setActiveOngoingRequest] = useState(null);
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -48,7 +48,19 @@ const DashboardPage = () => {
       }
     };
 
+    const fetchActiveRequest = async () => {
+      try {
+        const res = await authApi.getActiveRequest();
+        if (res?.success && res.hasActiveRequest && res.request) {
+          setActiveOngoingRequest(res.request);
+        }
+      } catch (err) {
+        // quiet ignore
+      }
+    };
+
     fetchRequests();
+    fetchActiveRequest();
   }, []);
 
   return (
@@ -89,6 +101,43 @@ const DashboardPage = () => {
           Emergency SOS
         </Link>
       </div>
+
+      {/* Active Ongoing Roadside Request Alert */}
+      {activeOngoingRequest && (
+        <div
+          style={{
+            background: 'rgba(234, 179, 8, 0.12)',
+            border: '1px solid rgba(234, 179, 8, 0.4)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1.25rem 1.75rem',
+            marginBottom: '2rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1rem'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#eab308' }} />
+            <div>
+              <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
+                Active Breakdown Ticket #{activeOngoingRequest.requestId} ({activeOngoingRequest.status.replace(/_/g, ' ').toUpperCase()})
+              </h4>
+              <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#cbd5e1' }}>
+                {activeOngoingRequest.vehicleName} • {activeOngoingRequest.problemCategory} • {activeOngoingRequest.location}
+              </p>
+            </div>
+          </div>
+          <Link
+            to={`/tracking/${activeOngoingRequest.requestId}`}
+            className="btn btn-primary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+          >
+            Open Live GPS Tracking Map <ArrowRight size={16} />
+          </Link>
+        </div>
+      )}
 
       {/* Quick Action Cards */}
       <div className="grid grid-cols-4 gap-4" style={{ marginBottom: '2rem' }}>
@@ -157,41 +206,56 @@ const DashboardPage = () => {
             </div>
 
             <div className="card-body" style={{ padding: 0 }}>
-              {serviceRequests.map((item, idx) => (
-                <div
-                  key={item.id}
-                  style={{
-                    padding: '1.25rem 1.5rem',
-                    borderBottom: idx !== serviceRequests.length - 1 ? '1px solid var(--border-color)' : 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '1rem'
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{item.serviceType}</span>
-                      <StatusBadge status={item.status} size="sm" />
+              {serviceRequests.length > 0 ? (
+                serviceRequests.map((item, idx) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      padding: '1.25rem 1.5rem',
+                      borderBottom: idx !== serviceRequests.length - 1 ? '1px solid var(--border-color)' : 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '1rem'
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{item.serviceType}</span>
+                        <StatusBadge status={item.status} size="sm" />
+                      </div>
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                        Mechanic: <strong>{item.mechanicName}</strong> ({item.workshopName})
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                        {item.vehicleName} • {formatDate(item.date)}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                      Mechanic: <strong>{item.mechanicName}</strong> ({item.workshopName})
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                      {item.vehicleName} • {formatDate(item.date)}
-                    </div>
-                  </div>
 
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {formatCurrency(item.charge)}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      {item.id}
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {formatCurrency(item.charge)}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {item.id}
+                      </div>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
+                  <Clock size={32} style={{ margin: '0 auto 0.75rem', opacity: 0.5 }} />
+                  <p style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                    No Service Requests Yet
+                  </p>
+                  <p style={{ fontSize: '0.8125rem', marginBottom: '1rem' }}>
+                    When you request emergency roadside assistance, your request timeline and tracking will appear here.
+                  </p>
+                  <Link to="/emergency" className="btn btn-sm btn-primary">
+                    Request Assistance
+                  </Link>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
