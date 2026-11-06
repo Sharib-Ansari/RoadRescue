@@ -16,7 +16,9 @@ import {
   Truck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { getInitials } from '../utils/helpers';
+import LogoutModal from '../components/common/LogoutModal';
 import './DashboardLayout.css';
 import './MechanicDashboardLayout.css';
 
@@ -24,14 +26,71 @@ const ShopDashboardLayout = ({
   children,
   title = 'Shop Dashboard'
 }) => {
+  // Mobile drawer open state
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Desktop sidebar collapse state (persisted)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem('roadrescue_sidebar_collapsed');
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  });
+
+  // Logout modal state
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const { user, logout } = useAuth();
+  const { socket } = useSocket();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleToggleSidebar = () => {
+    if (window.innerWidth <= 768) {
+      setSidebarOpen((prev) => !prev);
+    } else {
+      setSidebarCollapsed((prev) => {
+        const next = !prev;
+        try {
+          localStorage.setItem('roadrescue_sidebar_collapsed', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    }
+  };
+
+  const handleOpenLogoutModal = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleCloseLogoutModal = () => {
+    if (isLoggingOut) return;
+    setShowLogoutModal(false);
+  };
+
+  const handleConfirmLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      if (socket) {
+        try {
+          socket.removeAllListeners();
+          socket.disconnect();
+        } catch (sockErr) {
+          console.warn('Socket disconnect error during logout:', sockErr);
+        }
+      }
+      await logout();
+    } catch (err) {
+      console.warn('Logout error, proceeding with redirect:', err);
+    } finally {
+      setIsLoggingOut(false);
+      setShowLogoutModal(false);
+      navigate('/login');
+    }
   };
 
   const navItems = [
@@ -58,9 +117,9 @@ const ShopDashboardLayout = ({
       />
 
       {/* Sidebar */}
-      <aside className={`dashboard-sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <aside className={`dashboard-sidebar ${sidebarOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
-          <NavLink to="/shop/dashboard" className="brand-link" onClick={() => setSidebarOpen(false)}>
+          <NavLink to="/shop/dashboard" className="brand-link" onClick={() => setSidebarOpen(false)} title="RoadRescue Shop">
             <div className="brand-icon-wrapper" style={{ background: 'linear-gradient(135deg, #2563EB, #1D4ED8)' }}>
               <Store size={20} color="#FFFFFF" />
             </div>
@@ -91,7 +150,7 @@ const ShopDashboardLayout = ({
         </div>
 
         {/* User Card */}
-        <div className="sidebar-user-card" style={{ borderLeft: '3px solid #3B82F6' }}>
+        <div className="sidebar-user-card" style={{ borderLeft: '3px solid #3B82F6' }} title={user?.shop?.name || user?.name || 'Shop Owner'}>
           <div className="user-avatar" style={{ background: 'linear-gradient(135deg, #1E40AF, #3B82F6)' }}>
             {getInitials(user?.name || 'Shop Owner')}
           </div>
@@ -116,6 +175,7 @@ const ShopDashboardLayout = ({
                     to={item.path}
                     className={`nav-link ${isActive ? 'active' : ''}`}
                     onClick={() => setSidebarOpen(false)}
+                    title={item.name}
                   >
                     <Icon size={19} className="nav-icon" />
                     <span className="nav-label">{item.name}</span>
@@ -129,7 +189,12 @@ const ShopDashboardLayout = ({
 
         {/* Footer with Logout */}
         <div className="sidebar-footer">
-          <button type="button" className="logout-btn" onClick={handleLogout}>
+          <button
+            type="button"
+            className="logout-btn btn-logout"
+            onClick={handleOpenLogoutModal}
+            title="Sign Out"
+          >
             <LogOut size={18} />
             <span>Sign Out</span>
           </button>
@@ -137,26 +202,27 @@ const ShopDashboardLayout = ({
       </aside>
 
       {/* Main Content Area */}
-      <div className="dashboard-main">
+      <div className={`dashboard-main ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {/* Top Header */}
-        <header className="dashboard-topbar">
-          <div className="topbar-left">
+        <header className="dashboard-topbar dashboard-header">
+          <div className="topbar-left header-left">
             <button
               type="button"
-              className="menu-toggle-btn"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open sidebar menu"
+              className="menu-toggle-btn sidebar-toggle-btn"
+              onClick={handleToggleSidebar}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               <Menu size={20} />
             </button>
-            <div className="page-breadcrumb">
+            <div className="page-breadcrumb header-breadcrumb">
               <span className="breadcrumb-root">Shop Portal</span>
               <ChevronRight size={14} className="breadcrumb-sep" />
               <h1 className="breadcrumb-current">{displayTitle}</h1>
             </div>
           </div>
 
-          <div className="topbar-right">
+          <div className="topbar-right header-right">
             <NavLink
               to="/shop/products?new=1"
               style={{
@@ -178,7 +244,7 @@ const ShopDashboardLayout = ({
             </NavLink>
 
             <div className="topbar-user">
-              <div className="topbar-avatar" style={{ background: 'linear-gradient(135deg, #1E40AF, #3B82F6)' }}>
+              <div className="topbar-avatar user-avatar" style={{ background: 'linear-gradient(135deg, #1E40AF, #3B82F6)' }}>
                 {getInitials(user?.name || 'SO')}
               </div>
             </div>
@@ -188,6 +254,14 @@ const ShopDashboardLayout = ({
         {/* Page Content */}
         <main className="dashboard-content">{children}</main>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={handleCloseLogoutModal}
+        onConfirm={handleConfirmLogout}
+        isLoggingOut={isLoggingOut}
+      />
     </div>
   );
 };

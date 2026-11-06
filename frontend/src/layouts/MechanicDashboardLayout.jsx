@@ -17,7 +17,9 @@ import {
   Radio
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { getInitials } from '../utils/helpers';
+import LogoutModal from '../components/common/LogoutModal';
 import './DashboardLayout.css';
 import './MechanicDashboardLayout.css';
 
@@ -27,14 +29,71 @@ const MechanicDashboardLayout = ({
   isOnline = true,
   onToggleOnline
 }) => {
+  // Mobile drawer open state
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Desktop sidebar collapse state (persisted)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem('roadrescue_sidebar_collapsed');
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  });
+
+  // Logout modal state
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const { user, logout } = useAuth();
+  const { socket } = useSocket();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleToggleSidebar = () => {
+    if (window.innerWidth <= 768) {
+      setSidebarOpen((prev) => !prev);
+    } else {
+      setSidebarCollapsed((prev) => {
+        const next = !prev;
+        try {
+          localStorage.setItem('roadrescue_sidebar_collapsed', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    }
+  };
+
+  const handleOpenLogoutModal = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleCloseLogoutModal = () => {
+    if (isLoggingOut) return;
+    setShowLogoutModal(false);
+  };
+
+  const handleConfirmLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      if (socket) {
+        try {
+          socket.removeAllListeners();
+          socket.disconnect();
+        } catch (sockErr) {
+          console.warn('Socket disconnect error during logout:', sockErr);
+        }
+      }
+      await logout();
+    } catch (err) {
+      console.warn('Logout error, proceeding with redirect:', err);
+    } finally {
+      setIsLoggingOut(false);
+      setShowLogoutModal(false);
+      navigate('/login');
+    }
   };
 
   const navItems = [
@@ -65,9 +124,9 @@ const MechanicDashboardLayout = ({
       />
 
       {/* Sidebar */}
-      <aside className={`dashboard-sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <aside className={`dashboard-sidebar ${sidebarOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
-          <NavLink to="/mechanic/dashboard" className="brand-link" onClick={() => setSidebarOpen(false)}>
+          <NavLink to="/mechanic/dashboard" className="brand-link" onClick={() => setSidebarOpen(false)} title="RoadRescue Pro">
             <div className="brand-icon-wrapper mechanic-brand-icon">
               <Wrench size={20} />
             </div>
@@ -87,7 +146,7 @@ const MechanicDashboardLayout = ({
         </div>
 
         {/* Quick Dispatch Status Banner */}
-        <div className="mech-sidebar-status">
+        <div className="mech-sidebar-status" title={isOnline ? 'Online • Accepting Requests' : 'Offline • Paused'}>
           <div className="mech-status-header">
             <Radio size={14} className={isOnline ? 'mech-live-ping' : ''} />
             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
@@ -126,6 +185,7 @@ const MechanicDashboardLayout = ({
                 to={item.path}
                 className={`nav-link ${isActive ? 'active' : ''}`}
                 onClick={() => setSidebarOpen(false)}
+                title={item.name}
               >
                 <Icon size={19} />
                 <span>{item.name}</span>
@@ -135,7 +195,12 @@ const MechanicDashboardLayout = ({
         </nav>
 
         <div className="sidebar-footer">
-          <button type="button" className="btn-logout" onClick={handleLogout}>
+          <button
+            type="button"
+            className="btn-logout"
+            onClick={handleOpenLogoutModal}
+            title="Sign Out"
+          >
             <LogOut size={18} />
             <span>Sign Out</span>
           </button>
@@ -144,14 +209,15 @@ const MechanicDashboardLayout = ({
       </aside>
 
       {/* Main Content Area */}
-      <div className="dashboard-main">
+      <div className={`dashboard-main ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         <header className="dashboard-header">
           <div className="header-left">
             <button
               type="button"
               className="sidebar-toggle-btn"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open sidebar"
+              onClick={handleToggleSidebar}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               <Menu size={20} />
             </button>
@@ -203,6 +269,14 @@ const MechanicDashboardLayout = ({
           {children}
         </main>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={handleCloseLogoutModal}
+        onConfirm={handleConfirmLogout}
+        isLoggingOut={isLoggingOut}
+      />
     </div>
   );
 };

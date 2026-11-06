@@ -551,13 +551,13 @@ export default function LandingPage() {
                 When your vehicle stops, help shouldn&apos;t.
               </p>
               <div className="footer-social-icons">
-                <a href="https://github.com" target="_blank" rel="noreferrer" className="social-icon-btn" aria-label="Github">
+                <a href="https://github.com/Sharib-Ansari/RoadRescue" target="_blank" rel="noreferrer" className="social-icon-btn" aria-label="Github">
                   <Github size={18} />
                 </a>
                 <a href="https://twitter.com" target="_blank" rel="noreferrer" className="social-icon-btn" aria-label="Twitter">
                   <Twitter size={18} />
                 </a>
-                <a href="https://linkedin.com" target="_blank" rel="noreferrer" className="social-icon-btn" aria-label="LinkedIn">
+                <a href="https://www.linkedin.com/in/sharib-ansari-ab0018324/" target="_blank" rel="noreferrer" className="social-icon-btn" aria-label="LinkedIn">
                   <Linkedin size={18} />
                 </a>
               </div>
@@ -591,15 +591,15 @@ export default function LandingPage() {
               <ul className="footer-contact-list">
                 <li className="contact-item">
                   <Mail size={16} className="contact-icon" />
-                  <a href="mailto:support@roadrescue.in">support@roadrescue.in</a>
+                  <a href="mailto:support@roadrescue.in">ansarisharib8445@gmail.com</a>
                 </li>
                 <li className="contact-item">
                   <Phone size={16} className="contact-icon" />
-                  <a href="tel:+9118001234567">+91 1800 XXX XXXX</a>
+                  <a href="tel:+9118001234567">+91 8445538672</a>
                 </li>
                 <li className="contact-item">
                   <MapPin size={16} className="contact-icon" />
-                  <span>Tech Innovation Park, Sector 62, Noida, UP, India</span>
+                  <span>Ahbab Nagar Jwalapur Haridwar, Uttrakhand, India</span>
                 </li>
               </ul>
             </div>
@@ -608,7 +608,10 @@ export default function LandingPage() {
           {/* Bottom Bar */}
           <div className="footer-bottom-bar">
             <p className="copyright-text">
-              © 2024 RoadRescue. Academic Project | MCA Program. All rights reserved.
+              © 2026 RoadRescue. Academic Project | MCA Program. All rights reserved.
+            </p>
+            <p className="copyright-text">
+              Made With Love By SHARIB ANSARI 💖
             </p>
             <div className="footer-legal-links">
               <a href="#privacy">Privacy Policy</a>

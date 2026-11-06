@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -16,26 +16,80 @@ import {
   ShoppingBag
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { useCart } from '../context/CartContext';
 import { useVehicles } from '../context/VehicleContext';
 import { getInitials } from '../utils/helpers';
+import LogoutModal from '../components/common/LogoutModal';
 import './DashboardLayout.css';
 
 const DashboardLayout = ({ children, title = 'Dashboard' }) => {
+  // Mobile drawer open state
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Desktop sidebar collapse state (persisted)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem('roadrescue_sidebar_collapsed');
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  });
+
+  // Logout modal state
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const { user, logout } = useAuth();
+  const { socket } = useSocket();
   const { totalItems } = useCart();
   const { selectedVehicle } = useVehicles();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [loggingOut, setLoggingOut] = useState(false);
-  const handleLogout = async () => {
-    if (loggingOut) return;
-    setLoggingOut(true);
+  const handleToggleSidebar = () => {
+    if (window.innerWidth <= 768) {
+      setSidebarOpen((prev) => !prev);
+    } else {
+      setSidebarCollapsed((prev) => {
+        const next = !prev;
+        try {
+          localStorage.setItem('roadrescue_sidebar_collapsed', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    }
+  };
+
+  const handleOpenLogoutModal = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleCloseLogoutModal = () => {
+    if (isLoggingOut) return;
+    setShowLogoutModal(false);
+  };
+
+  const handleConfirmLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
     try {
+      // Disconnect socket and clean up listeners immediately
+      if (socket) {
+        try {
+          socket.removeAllListeners();
+          socket.disconnect();
+        } catch (sockErr) {
+          console.warn('Socket disconnect error during logout:', sockErr);
+        }
+      }
       await logout();
+    } catch (err) {
+      console.warn('Logout error, proceeding with redirect:', err);
     } finally {
+      setIsLoggingOut(false);
+      setShowLogoutModal(false);
       navigate('/login');
     }
   };
@@ -66,9 +120,9 @@ const DashboardLayout = ({ children, title = 'Dashboard' }) => {
       />
 
       {/* Sidebar */}
-      <aside className={`dashboard-sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <aside className={`dashboard-sidebar ${sidebarOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
-          <NavLink to="/dashboard" className="brand-link" onClick={() => setSidebarOpen(false)}>
+          <NavLink to="/dashboard" className="brand-link" onClick={() => setSidebarOpen(false)} title="RoadRescue">
             <div className="brand-icon-wrapper">
               <ShieldAlert size={20} />
             </div>
@@ -98,6 +152,7 @@ const DashboardLayout = ({ children, title = 'Dashboard' }) => {
                   `nav-link ${isEmergency ? 'nav-emergency' : ''} ${isActive ? 'active' : ''}`
                 }
                 onClick={() => setSidebarOpen(false)}
+                title={item.name}
               >
                 <Icon size={19} />
                 <span>{item.name}</span>
@@ -111,26 +166,26 @@ const DashboardLayout = ({ children, title = 'Dashboard' }) => {
           <button
             type="button"
             className="btn-logout"
-            onClick={handleLogout}
-            disabled={loggingOut}
-            style={{ opacity: loggingOut ? 0.6 : 1, cursor: loggingOut ? 'not-allowed' : 'pointer' }}
+            onClick={handleOpenLogoutModal}
+            title="Sign Out"
           >
             <LogOut size={18} />
-            <span>{loggingOut ? 'Signing Out…' : 'Sign Out'}</span>
+            <span>Sign Out</span>
           </button>
           <div className="app-version">RoadRescue v1.0 • 24/7 Assist</div>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <div className="dashboard-main">
+      <div className={`dashboard-main ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         <header className="dashboard-header">
           <div className="header-left">
             <button
               type="button"
               className="sidebar-toggle-btn"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open sidebar"
+              onClick={handleToggleSidebar}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               <Menu size={20} />
             </button>
@@ -178,6 +233,14 @@ const DashboardLayout = ({ children, title = 'Dashboard' }) => {
           {children}
         </main>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={handleCloseLogoutModal}
+        onConfirm={handleConfirmLogout}
+        isLoggingOut={isLoggingOut}
+      />
     </div>
   );
 };
