@@ -56,8 +56,14 @@
 
 .account-type-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.85rem;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.65rem;
+}
+
+@media (max-width: 640px) {
+  .account-type-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .account-type-card {

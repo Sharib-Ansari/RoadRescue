@@ -155,7 +155,20 @@ export const AuthProvider = ({ children }) => {
       workshopName: userData.workshopName,
       servicesOffered: userData.servicesOffered || userData.services,
       experienceYears: userData.experienceYears !== undefined ? Number(userData.experienceYears) : undefined,
-      serviceArea: userData.serviceArea
+      serviceArea: userData.serviceArea,
+      // Shop owner specific fields
+      shopName: userData.shopName,
+      shopAddress: userData.shopAddress || userData.address,
+      shopCity: userData.shopCity || userData.city,
+      shopPinCode: userData.shopPinCode || userData.pinCode,
+      shopDescription: userData.shopDescription || userData.description,
+      shopPhone: userData.shopPhone || userData.phone,
+      latitude: userData.latitude,
+      longitude: userData.longitude,
+      location: userData.location,
+      acceptsHomeDelivery: userData.acceptsHomeDelivery,
+      acceptsShopPickup: userData.acceptsShopPickup,
+      deliveryCharge: userData.deliveryCharge
     };
 
     try {

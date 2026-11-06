@@ -12,7 +12,8 @@ import {
   X,
   Bell,
   ChevronRight,
-  ShieldAlert
+  ShieldAlert,
+  ShoppingBag
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -38,6 +39,7 @@ const DashboardLayout = ({ children, title = 'Dashboard' }) => {
     { name: 'Emergency SOS', path: '/emergency', icon: AlertTriangle, isEmergency: true },
     { name: 'Find Mechanic', path: '/mechanics', icon: Wrench },
     { name: 'Spare Parts', path: '/spare-parts', icon: Package, badge: totalItems > 0 ? totalItems : null },
+    { name: 'My Orders', path: '/my-orders', icon: ShoppingBag },
     { name: 'My Vehicles', path: '/vehicles', icon: Car },
     { name: 'Profile', path: '/profile', icon: User }
   ];

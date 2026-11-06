@@ -122,6 +122,8 @@ export default function LoginPage() {
         const role = (loggedUser?.role || loggedUser?.accountType || '').toLowerCase();
         if (role === 'mechanic') {
           targetRoute = '/mechanic/dashboard';
+        } else if (role === 'shop_owner') {
+          targetRoute = '/shop/dashboard';
         }
       }
 

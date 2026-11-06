@@ -8,6 +8,9 @@ import authRoutes from './routes/authRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js';
 import requestRoutes from './routes/requestRoutes.js';
 import mechanicRoutes from './routes/mechanicRoutes.js';
+import shopRoutes from './routes/shopRoutes.js';
+import productRoutes from './routes/productRoutes.js';
+import orderRoutes from './routes/orderRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
@@ -44,6 +47,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/mechanics', mechanicRoutes);
+app.use('/api/shops', shopRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
 app.use('/api', dashboardRoutes);
 
 // Handle undefined routes

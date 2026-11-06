@@ -17,6 +17,12 @@ import MechanicDetailPage from './pages/MechanicDetailPage';
 import RequestMechanicPage from './pages/RequestMechanicPage';
 import TrackingPage from './pages/TrackingPage';
 import SparePartsPage from './pages/SparePartsPage';
+import ShopDashboardPage from './pages/ShopDashboardPage';
+import ShopProductsPage from './pages/ShopProductsPage';
+import ShopOrdersPage from './pages/ShopOrdersPage';
+import CheckoutPage from './pages/CheckoutPage';
+import MyOrdersPage from './pages/MyOrdersPage';
+import OrderDetailPage from './pages/OrderDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import NotFoundPage from './pages/NotFoundPage';
 
@@ -46,6 +52,31 @@ function App() {
                   element={
                     <ProtectedRoute allowedRoles={['mechanic']}>
                       <MechanicDashboardPage />
+                    </ProtectedRoute>
+                  }
+                />
+                {/* Shop Owner Dashboard - Protected for Shop Owners only */}
+                <Route
+                  path="/shop/dashboard"
+                  element={
+                    <ProtectedRoute allowedRoles={['shop_owner']}>
+                      <ShopDashboardPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/shop/products"
+                  element={
+                    <ProtectedRoute allowedRoles={['shop_owner']}>
+                      <ShopProductsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/shop/orders"
+                  element={
+                    <ProtectedRoute allowedRoles={['shop_owner']}>
+                      <ShopOrdersPage />
                     </ProtectedRoute>
                   }
                 />
@@ -102,6 +133,30 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <SparePartsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/checkout"
+                  element={
+                    <ProtectedRoute allowedRoles={['customer']}>
+                      <CheckoutPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/my-orders"
+                  element={
+                    <ProtectedRoute>
+                      <MyOrdersPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/orders/:id"
+                  element={
+                    <ProtectedRoute>
+                      <OrderDetailPage />
                     </ProtectedRoute>
                   }
                 />

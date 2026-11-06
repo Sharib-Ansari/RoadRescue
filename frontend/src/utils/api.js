@@ -117,7 +117,48 @@ export const authApi = {
   updateMechanicLocation: (locationData) => request('/mechanics/location', {
     method: 'PATCH',
     body: locationData
-  })
+  }),
+
+  // Phase 7: Shop Management
+  getMyShop: () => request('/shops/me', { method: 'GET' }),
+  createShop: (shopData) => request('/shops', { method: 'POST', body: shopData }),
+  updateMyShop: (shopData) => request('/shops/me', { method: 'PATCH', body: shopData }),
+  getShops: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/shops${qs ? `?${qs}` : ''}`, { method: 'GET' });
+  },
+  getShopById: (id) => request(`/shops/${id}`, { method: 'GET' }),
+
+  // Phase 7: Products
+  getProducts: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/products${qs ? `?${qs}` : ''}`, { method: 'GET' });
+  },
+  getProductById: (id) => request(`/products/${id}`, { method: 'GET' }),
+  getMyProducts: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/products/my-products${qs ? `?${qs}` : ''}`, { method: 'GET' });
+  },
+  createProduct: (productData) => request('/products', { method: 'POST', body: productData }),
+  updateProduct: (id, productData) => request(`/products/${id}`, { method: 'PUT', body: productData }),
+  deleteProduct: (id) => request(`/products/${id}`, { method: 'DELETE' }),
+
+  // Phase 7: Orders
+  createOrder: (orderData) => request('/orders', { method: 'POST', body: orderData }),
+  getMyOrders: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/orders/my-orders${qs ? `?${qs}` : ''}`, { method: 'GET' });
+  },
+  getOrderById: (id) => request(`/orders/${id}`, { method: 'GET' }),
+  getShopOrders: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return request(`/orders/shop-orders${qs ? `?${qs}` : ''}`, { method: 'GET' });
+  },
+  updateOrderStatus: (id, status, notes) => request(`/orders/${id}/status`, {
+    method: 'PATCH',
+    body: { status, notes }
+  }),
+  getShopDashboardStats: () => request('/orders/shop-stats', { method: 'GET' })
 };
 
 export default authApi;

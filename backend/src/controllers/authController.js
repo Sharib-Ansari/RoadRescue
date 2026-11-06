@@ -1,4 +1,6 @@
+import mongoose from 'mongoose';
 import User from '../models/User.js';
+import Shop from '../models/Shop.js';
 import { generateToken, setAuthCookie, clearAuthCookie } from '../utils/jwt.js';
 import { AppError } from '../middleware/errorHandler.js';
 
@@ -21,7 +23,26 @@ export const register = async (req, res, next) => {
       servicesOffered,
       experience,
       experienceYears,
-      serviceArea
+      serviceArea,
+      // Shop owner specific fields
+      shopName,
+      shopAddress,
+      address,
+      shopCity,
+      city,
+      shopPinCode,
+      pinCode,
+      shopDescription,
+      description,
+      shopPhone,
+      latitude,
+      shopLatitude,
+      longitude,
+      shopLongitude,
+      location,
+      acceptsHomeDelivery,
+      acceptsShopPickup,
+      deliveryCharge
     } = req.body;
 
     // Harmonize naming between frontend & backend conventions
@@ -53,8 +74,8 @@ export const register = async (req, res, next) => {
     }
 
     // 2. Validate role - strictly disallow administrative or unexpected roles
-    if (!['customer', 'mechanic'].includes(userRole)) {
-      return next(new AppError('Account role must be either customer or mechanic', 400));
+    if (!['customer', 'mechanic', 'shop_owner'].includes(userRole)) {
+      return next(new AppError('Account role must be either customer, mechanic, or shop_owner', 400));
     }
 
     // 3. Mechanic profile validation if registering as mechanic
@@ -87,33 +108,127 @@ export const register = async (req, res, next) => {
       };
     }
 
-    // 4. Check for duplicate email
+    // 4. Shop validation if registering as shop_owner
+    let shopData = null;
+    if (userRole === 'shop_owner') {
+      const sName = (shopName || workshopName || '').trim();
+      const sAddr = (shopAddress || address || '').trim();
+      const sCity = (shopCity || city || serviceArea || '').trim();
+      const sPin = (shopPinCode || pinCode || '').trim();
+
+      if (!sName) {
+        return next(new AppError('Shop name is required for spare parts shop registration', 400));
+      }
+      if (!sAddr) {
+        return next(new AppError('Shop physical address is required', 400));
+      }
+      if (!sCity) {
+        return next(new AppError('City is required for shop registration', 400));
+      }
+      if (!sPin) {
+        return next(new AppError('PIN code is required for shop registration', 400));
+      }
+
+      const rawLat = latitude !== undefined ? latitude : shopLatitude;
+      const rawLng = longitude !== undefined ? longitude : shopLongitude;
+      let geoCoordinates = [77.2090, 28.6139]; // Default Delhi coords if not provided
+
+      if (location && Array.isArray(location.coordinates) && location.coordinates.length === 2) {
+        geoCoordinates = [Number(location.coordinates[0]), Number(location.coordinates[1])];
+      } else if (rawLat !== undefined && rawLng !== undefined && rawLat !== '' && rawLng !== '') {
+        const latNum = Number(rawLat);
+        const lngNum = Number(rawLng);
+        if (Number.isNaN(latNum) || Number.isNaN(lngNum) || latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
+          return next(new AppError('Invalid GPS coordinates for shop location', 400));
+        }
+        geoCoordinates = [lngNum, latNum];
+      }
+
+      shopData = {
+        name: sName,
+        description: (shopDescription || description || '').trim(),
+        phone: (shopPhone || phone || '').trim(),
+        address: sAddr,
+        city: sCity,
+        pinCode: sPin,
+        location: {
+          type: 'Point',
+          coordinates: geoCoordinates
+        },
+        acceptsHomeDelivery: acceptsHomeDelivery !== undefined ? Boolean(acceptsHomeDelivery) : true,
+        acceptsShopPickup: acceptsShopPickup !== undefined ? Boolean(acceptsShopPickup) : true,
+        deliveryCharge: deliveryCharge !== undefined ? Math.max(0, Number(deliveryCharge)) : 0,
+        isActive: true
+      };
+    }
+
+    // 5. Check for duplicate email
     const existingUser = await User.findOne({ email: userEmail });
     if (existingUser) {
       return next(new AppError('An account with this email address already exists', 409));
     }
 
-    // 5. Hash password with Argon2id
+    // 6. Hash password with Argon2id
     const passwordHash = await User.hashPassword(password);
 
-    // 6. Save new user to MongoDB
-    const newUser = await User.create({
-      name: userName,
-      email: userEmail,
-      phone: (phone || '').trim(),
-      passwordHash,
-      role: userRole,
-      isActive: true,
-      mechanicProfile: userRole === 'mechanic' ? mechanicProfile : undefined
-    });
+    // 7. Transactional user and shop creation
+    let newUser;
+    let newShop = null;
 
-    // 7. Generate JWT
+    const session = await mongoose.startSession();
+    let transactionStarted = false;
+    try {
+      try {
+        session.startTransaction();
+        transactionStarted = true;
+      } catch (tErr) {
+        // Fallback for non-replica-set testing environments
+        transactionStarted = false;
+      }
+
+      const sessionOpt = transactionStarted ? { session } : {};
+
+      const userDocs = await User.create(
+        [
+          {
+            name: userName,
+            email: userEmail,
+            phone: (phone || '').trim(),
+            passwordHash,
+            role: userRole,
+            isActive: true,
+            mechanicProfile: userRole === 'mechanic' ? mechanicProfile : undefined
+          }
+        ],
+        sessionOpt
+      );
+      newUser = userDocs[0];
+
+      if (userRole === 'shop_owner' && shopData) {
+        shopData.owner = newUser._id;
+        const shopDocs = await Shop.create([shopData], sessionOpt);
+        newShop = shopDocs[0];
+      }
+
+      if (transactionStarted) {
+        await session.commitTransaction();
+      }
+    } catch (saveError) {
+      if (transactionStarted) {
+        await session.abortTransaction();
+      }
+      throw saveError;
+    } finally {
+      session.endSession();
+    }
+
+    // 8. Generate JWT
     const token = generateToken(newUser);
 
-    // 8. Set HttpOnly authentication cookie
+    // 9. Set HttpOnly authentication cookie
     setAuthCookie(res, token);
 
-    // 9. Return safe user object (passwordHash is automatically excluded by toJSON)
+    // 10. Return safe user object
     const userResponse = newUser.toJSON();
 
     res.status(201).json({
@@ -125,7 +240,8 @@ export const register = async (req, res, next) => {
         email: userResponse.email,
         phone: userResponse.phone,
         role: userResponse.role,
-        ...(userResponse.role === 'mechanic' && { mechanicProfile: userResponse.mechanicProfile })
+        ...(userResponse.role === 'mechanic' && { mechanicProfile: userResponse.mechanicProfile }),
+        ...(userResponse.role === 'shop_owner' && newShop && { shop: newShop })
       }
     });
   } catch (error) {
@@ -181,6 +297,10 @@ export const login = async (req, res, next) => {
 
     // 7. Return safe user details
     const userResponse = user.toJSON();
+    let shop = null;
+    if (user.role === 'shop_owner') {
+      shop = await Shop.findOne({ owner: user._id });
+    }
 
     res.status(200).json({
       success: true,
@@ -191,7 +311,8 @@ export const login = async (req, res, next) => {
         email: userResponse.email,
         phone: userResponse.phone,
         role: userResponse.role,
-        ...(userResponse.role === 'mechanic' && { mechanicProfile: userResponse.mechanicProfile })
+        ...(userResponse.role === 'mechanic' && { mechanicProfile: userResponse.mechanicProfile }),
+        ...(userResponse.role === 'shop_owner' && shop && { shop })
       }
     });
   } catch (error) {

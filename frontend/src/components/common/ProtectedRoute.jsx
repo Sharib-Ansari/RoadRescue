@@ -41,6 +41,8 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
       // Redirect users to their respective home dashboard
       if (userRole === 'mechanic') {
         return <Navigate to="/mechanic/dashboard" replace />;
+      } else if (userRole === 'shop_owner') {
+        return <Navigate to="/shop/dashboard" replace />;
       }
       return <Navigate to="/dashboard" replace />;
     }
