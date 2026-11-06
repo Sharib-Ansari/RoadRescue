@@ -1,29 +1,19 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/authMiddleware.js';
+import { getCustomerDashboard } from '../controllers/dashboardController.js';
 
 const router = Router();
 
 /**
- * Customer dashboard API (Customer role only)
+ * Customer dashboard API — returns real aggregated MongoDB data
  * GET /api/customer/dashboard
  */
-router.get('/customer/dashboard', requireAuth, requireRole('customer'), (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Welcome to Customer Dashboard',
-    user: {
-      id: req.user.id,
-      name: req.user.name,
-      email: req.user.email,
-      role: req.user.role
-    },
-    data: {
-      activeRequests: 0,
-      totalVehicles: 0,
-      recentActivity: []
-    }
-  });
-});
+router.get(
+  '/customer/dashboard',
+  requireAuth,
+  requireRole('customer'),
+  getCustomerDashboard
+);
 
 /**
  * Mechanic dashboard API (Mechanic role only)

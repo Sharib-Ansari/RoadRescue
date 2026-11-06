@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import authApi from '../utils/api';
 
@@ -220,9 +220,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Log out user from both server (clearing HttpOnly cookie) and client
+   * Log out user from both server (clearing HttpOnly cookie) and client.
+   * Guard prevents duplicate requests if the button is clicked rapidly.
    */
+  const isLoggingOut = useRef(false);
   const logout = async () => {
+    if (isLoggingOut.current) return;
+    isLoggingOut.current = true;
     try {
       await authApi.logout();
     } catch (err) {
@@ -230,6 +234,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       storage.remove(STORAGE_KEYS.USER);
       setUser(null);
+      isLoggingOut.current = false;
     }
   };
 

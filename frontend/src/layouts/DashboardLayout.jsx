@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -29,9 +29,15 @@ const DashboardLayout = ({ children, title = 'Dashboard' }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const [loggingOut, setLoggingOut] = useState(false);
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      navigate('/login');
+    }
   };
 
   const navItems = [
@@ -102,9 +108,15 @@ const DashboardLayout = ({ children, title = 'Dashboard' }) => {
         </nav>
 
         <div className="sidebar-footer">
-          <button type="button" className="btn-logout" onClick={handleLogout}>
+          <button
+            type="button"
+            className="btn-logout"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            style={{ opacity: loggingOut ? 0.6 : 1, cursor: loggingOut ? 'not-allowed' : 'pointer' }}
+          >
             <LogOut size={18} />
-            <span>Sign Out</span>
+            <span>{loggingOut ? 'Signing Out…' : 'Sign Out'}</span>
           </button>
           <div className="app-version">RoadRescue v1.0 • 24/7 Assist</div>
         </div>

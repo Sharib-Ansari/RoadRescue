@@ -1,4 +1,4 @@
-import Order from '../models/Order.js';
+﻿import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import Shop from '../models/Shop.js';
 import User from '../models/User.js';
@@ -34,6 +34,17 @@ export const createOrder = async (req, res, next) => {
     if (!shopId) {
       throw new AppError('Fulfilling shop ID is required', 400);
     }
+
+    // Guard: if the frontend accidentally sent a full Shop object instead of a string ID, extract cleanly
+    const rawShopId = (typeof shopId === 'object' && shopId !== null)
+      ? (shopId.id || shopId._id || '')
+      : shopId;
+    const cleanShopId = String(rawShopId).trim();
+
+    if (!cleanShopId || !mongoose.Types.ObjectId.isValid(cleanShopId)) {
+      throw new AppError('Invalid shop ID. Please clear your cart and try again.', 400);
+    }
+
     if (!Array.isArray(items) || items.length === 0) {
       throw new AppError('Order must contain at least one item', 400);
     }
@@ -41,8 +52,8 @@ export const createOrder = async (req, res, next) => {
       throw new AppError('Fulfillment method must be either "home_delivery" or "shop_pickup"', 400);
     }
 
-    // 2. Fetch and validate fulfilling shop
-    const shop = await Shop.findById(shopId);
+    // 2. Fetch and validate fulfilling shop using the sanitised string ID
+    const shop = await Shop.findById(cleanShopId);
     if (!shop) {
       throw new AppError('Fulfilling shop not found', 404);
     }
