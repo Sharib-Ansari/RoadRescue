@@ -3,19 +3,27 @@ import mongoose from 'mongoose';
 
 const router = Router();
 
+/**
+ * Health & Readiness Probe
+ * GET /api/health
+ * Returns HTTP 200 when database is healthy, HTTP 503 when disconnected.
+ */
 router.get('/', (req, res) => {
+  const isDbConnected = mongoose.connection.readyState === 1;
+  const statusCode = isDbConnected ? 200 : 503;
+
   const healthCheck = {
-    status: 'success',
-    message: 'RoadRescue API is running',
+    status: isDbConnected ? 'success' : 'error',
+    message: isDbConnected ? 'RoadRescue API is healthy and ready' : 'RoadRescue API is unavailable (database disconnected)',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+    uptime: Math.floor(process.uptime()),
     database: {
-      status: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-      name: mongoose.connection.name || 'N/A'
+      status: isDbConnected ? 'connected' : 'disconnected'
     }
   };
-  res.status(200).json(healthCheck);
+
+  res.status(statusCode).json(healthCheck);
 });
 
 export default router;

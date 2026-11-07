@@ -20,7 +20,7 @@ import './LoginPage.css';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login, DEMO_CREDENTIALS } = useAuth();
+  const { login } = useAuth();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -32,7 +32,6 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState('');
-  const [autoFilled, setAutoFilled] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -46,37 +45,6 @@ export default function LoginPage() {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
     if (authError) setAuthError('');
-  };
-
-  const handleFillDemo = () => {
-    const demoEmail = DEMO_CREDENTIALS?.email || 'demo@roadrescue.in';
-    const demoPassword = DEMO_CREDENTIALS?.password || 'demo123';
-    
-    setFormData({
-      email: demoEmail,
-      password: demoPassword,
-      rememberMe: true
-    });
-    setErrors({});
-    setAuthError('');
-    setAutoFilled('customer');
-    setTimeout(() => setAutoFilled(false), 2500);
-  };
-
-  const handleFillMechanicDemo = (e) => {
-    if (e) e.stopPropagation();
-    const mechEmail = DEMO_CREDENTIALS?.mechanicEmail || 'mechanic@roadrescue.in';
-    const mechPassword = DEMO_CREDENTIALS?.mechanicPassword || 'mechanic123';
-
-    setFormData({
-      email: mechEmail,
-      password: mechPassword,
-      rememberMe: true
-    });
-    setErrors({});
-    setAuthError('');
-    setAutoFilled('mechanic');
-    setTimeout(() => setAutoFilled(false), 2500);
   };
 
   const validateForm = () => {
@@ -234,64 +202,6 @@ export default function LoginPage() {
           <div className="auth-form-header">
             <h1 className="auth-title">Welcome Back</h1>
             <p className="auth-subtitle">Sign in to your RoadRescue account</p>
-          </div>
-
-          {/* DEMO CREDENTIALS BANNER (PROMINENT - YELLOW/AMBER BACKGROUND) */}
-          <div
-            className={`demo-credentials-banner ${autoFilled ? 'flash-success' : ''}`}
-            title="Click to auto-fill demo accounts"
-          >
-            <div className="demo-banner-header">
-              <div className="demo-badge-title">
-                <KeyRound size={16} className="demo-key-icon" />
-                <span>Demo Accounts</span>
-              </div>
-              <span className="demo-click-hint">
-                {autoFilled ? (
-                  <span className="filled-notice">
-                    <CheckCircle2 size={13} /> {autoFilled === 'mechanic' ? 'Mechanic' : 'Customer'} Applied!
-                  </span>
-                ) : (
-                  'Click an account to auto-fill'
-                )}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.4rem' }}>
-              <div
-                onClick={handleFillDemo}
-                style={{
-                  padding: '0.4rem 0.6rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontSize: '0.8125rem'
-                }}
-              >
-                <span>👤 <strong>Customer:</strong> demo@roadrescue.in</span>
-                <span style={{ color: 'var(--text-muted)' }}>demo123</span>
-              </div>
-
-              <div
-                onClick={handleFillMechanicDemo}
-                style={{
-                  padding: '0.4rem 0.6rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontSize: '0.8125rem'
-                }}
-              >
-                <span>🔧 <strong>Mechanic Partner:</strong> mechanic@roadrescue.in</span>
-                <span style={{ color: 'var(--text-muted)' }}>mechanic123</span>
-              </div>
-            </div>
           </div>
 
           {/* Global Auth Error Alert */}

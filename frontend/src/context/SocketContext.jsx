@@ -23,8 +23,14 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    // Determine socket server URL (same origin or Vite proxy in dev)
-    const socketUrl = window.location.origin;
+    // Determine socket server URL:
+    // 1. Explicit VITE_SOCKET_URL in production (e.g. https://roadrescue-api.onrender.com)
+    // 2. Strip /api from VITE_API_URL if configured
+    // 3. Fall back to window.location.origin in local development (handled by Vite proxy)
+    const socketUrl =
+      import.meta.env.VITE_SOCKET_URL ||
+      (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : '') ||
+      window.location.origin;
 
     const newSocket = io(socketUrl, {
       path: '/socket.io',

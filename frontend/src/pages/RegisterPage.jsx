@@ -48,8 +48,8 @@ export default function RegisterPage() {
     shopPinCode: '',
     shopDescription: '',
     shopPhone: '',
-    shopLatitude: '28.6139',
-    shopLongitude: '77.2090',
+    shopLatitude: '',
+    shopLongitude: '',
     acceptsHomeDelivery: true,
     acceptsShopPickup: true,
     deliveryCharge: 50
@@ -80,11 +80,9 @@ export default function RegisterPage() {
       },
       (err) => {
         setIsLocating(false);
-        // Fallback default (Delhi NCR)
-        setFormData((prev) => ({
+        setErrors((prev) => ({
           ...prev,
-          shopLatitude: '28.6139',
-          shopLongitude: '77.2090'
+          location: 'Location access was denied or timed out. Please enter your shop GPS coordinates manually.'
         }));
       },
       { timeout: 8000 }
@@ -245,8 +243,8 @@ export default function RegisterPage() {
         shopPinCode: formData.shopPinCode,
         shopDescription: formData.shopDescription,
         shopPhone: formData.shopPhone || formData.phone,
-        latitude: Number(formData.shopLatitude) || 28.6139,
-        longitude: Number(formData.shopLongitude) || 77.2090,
+        latitude: formData.shopLatitude !== '' ? Number(formData.shopLatitude) : undefined,
+        longitude: formData.shopLongitude !== '' ? Number(formData.shopLongitude) : undefined,
         acceptsHomeDelivery: formData.acceptsHomeDelivery,
         acceptsShopPickup: formData.acceptsShopPickup,
         deliveryCharge: Number(formData.deliveryCharge) || 0

@@ -16,6 +16,9 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 const app = express();
 
+// Trust reverse proxy (Render / Cloud load balancer) for accurate IP resolution in rate limiting
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet());
 

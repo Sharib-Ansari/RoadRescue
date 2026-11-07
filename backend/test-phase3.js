@@ -13,6 +13,13 @@ const getCookie = (res) => {
 async function testPhase3() {
   console.log('Testing Phase 3: Connected APIs & Models...\n');
 
+  // Safety Guard: Require dedicated test database
+  if (!process.env.MONGODB_TEST_URI) {
+    console.error('❌ MONGODB_TEST_URI environment variable is required to run phase 3 tests.');
+    console.error('Aborting tests to prevent accidental mutation of the primary database.');
+    process.exit(1);
+  }
+
   // 1. Test Public Mechanics API
   const mechRes = await fetch(`${BASE_URL}/api/mechanics`);
   const mechData = await mechRes.json();

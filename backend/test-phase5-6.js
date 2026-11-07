@@ -43,9 +43,16 @@ async function main() {
   console.log('   ROADRESCUE PHASE 5 & 6 - GEOLOCATION & REAL-TIME TRACKING');
   console.log('================================================================\n');
 
+  // Safety Guard: Require dedicated test database
+  if (!process.env.MONGODB_TEST_URI) {
+    console.error('❌ MONGODB_TEST_URI environment variable is required to run tests safely.');
+    console.error('Aborting tests to prevent accidental mutation of the primary database.');
+    process.exit(1);
+  }
+
   // Connect to DB directly for model schema inspections
   if (mongoose.connection.readyState === 0) {
-    await mongoose.connect(process.env.MONGODB_URI, { dbName: 'RoadRescue' });
+    await mongoose.connect(process.env.MONGODB_TEST_URI);
   }
 
   // Common credentials

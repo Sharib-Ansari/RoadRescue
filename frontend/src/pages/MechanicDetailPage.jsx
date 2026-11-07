@@ -19,7 +19,6 @@ import {
   Car,
   XCircle
 } from 'lucide-react';
-import { mechanics as initialMechanics } from '../data/mechanics';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import { formatCurrency, formatDate, getInitials } from '../utils/helpers';
 import authApi from '../utils/api';
@@ -30,14 +29,11 @@ export const MechanicDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // Find mechanic state with fallback
-  const [mechanic, setMechanic] = useState(() => {
-    return initialMechanics.find((m) => m.id === id) || null;
-  });
-  const [isLoading, setIsLoading] = useState(!mechanic);
+  // Find mechanic state
+  const [mechanic, setMechanic] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // If not found in static list or if id looks like MongoDB ObjectId (24 hex characters), fetch from backend
     const fetchMechanicDetails = async () => {
       try {
         const response = await authApi.getMechanicById(id);
@@ -46,24 +42,21 @@ export const MechanicDetailPage = () => {
           setMechanic({
             id: m.id || m._id,
             name: m.name,
-            workshopName: m.mechanicProfile?.workshopName || 'Certified Workshop Partner',
-            rating: 4.9,
-            reviewCount: 42,
-            distance: 1.5,
-            experience: m.mechanicProfile?.experience || 5,
-            services: m.mechanicProfile?.services || ['Engine Repair', 'Tyre Service', 'Battery Jumpstart'],
+            workshopName: m.workshopName || m.mechanicProfile?.workshopName || 'Certified Workshop Partner',
+            rating: m.rating || m.mechanicProfile?.rating || null,
+            reviewCount: m.reviewCount || m.mechanicProfile?.reviewCount || 0,
+            distance: m.distanceKm !== undefined ? m.distanceKm : null,
+            experience: m.experience || m.mechanicProfile?.experience || 5,
+            services: m.services || m.mechanicProfile?.services || ['General Inspection', 'Engine Diagnostics'],
             visitCharge: 250,
-            isAvailable: m.mechanicProfile?.isAvailable !== false,
-            specialization: 'Multi-Brand Assistance',
-            location: m.mechanicProfile?.serviceArea || 'Delhi NCR / Gurgaon',
-            phone: m.phone || '+91 98765 12345',
+            isAvailable: m.isAvailable !== undefined ? m.isAvailable : (m.mechanicProfile?.isAvailable !== false),
+            specialization: m.specialization || 'Multi-Brand Assistance',
+            location: m.serviceArea || m.mechanicProfile?.serviceArea || 'Verified Workshop Region',
+            phone: m.phone || '',
             email: m.email,
-            about: `Certified RoadRescue service partner with ${m.mechanicProfile?.experience || 5} years of specialized roadside recovery experience. Fully verified garage partner with high satisfaction scores across engine diagnostics, tyre recovery, and roadside towing.`,
-            reviews: [
-              { id: 'rev_1', author: 'Rahul K.', rating: 5, date: '2024-01-18', comment: 'Very fast response time and transparent rates. Fixed my alternator belt in 20 minutes.' },
-              { id: 'rev_2', author: 'Pooja V.', rating: 5, date: '2024-01-12', comment: 'Professional mechanic. Arrived with full tyre replacement gear.' }
-            ],
-            serviceCharges: {
+            about: m.about || `Certified RoadRescue service partner with ${m.mechanicProfile?.experience || 5} years of specialized roadside recovery experience.`,
+            reviews: m.reviews || [],
+            serviceCharges: m.serviceCharges || {
               'Emergency Callout': '₹250',
               'Engine Diagnostics': '₹500 - ₹2,000',
               'Tyre Puncture & Replacement': '₹300 - ₹800',
@@ -184,10 +177,12 @@ export const MechanicDetailPage = () => {
                       <span>Currently Busy</span>
                     </span>
                   )}
-                  <span className="distance-pill-chip">
-                    <MapPin size={12} />
-                    <span>{mechanic.distance} km away (Demo)</span>
-                  </span>
+                  {mechanic.distance !== null && mechanic.distance !== undefined && (
+                    <span className="distance-pill-chip">
+                      <MapPin size={12} />
+                      <span>{mechanic.distance} km away</span>
+                    </span>
+                  )}
                 </div>
 
                 <h1 className="hero-mechanic-name">{mechanic.name}</h1>
@@ -203,13 +198,21 @@ export const MechanicDetailPage = () => {
                 </div>
 
                 <div className="hero-rating-row">
-                  <div className="rating-stars-wrap">
-                    {renderStars(mechanic.rating)}
-                  </div>
-                  <span className="rating-score-bold">{mechanic.rating.toFixed(1)}</span>
-                  <span className="rating-reviews-label">
-                    ({mechanic.reviewCount} verified customer reviews)
-                  </span>
+                  {mechanic.rating ? (
+                    <>
+                      <div className="rating-stars-wrap">
+                        {renderStars(mechanic.rating)}
+                      </div>
+                      <span className="rating-score-bold">{mechanic.rating.toFixed(1)}</span>
+                      <span className="rating-reviews-label">
+                        ({mechanic.reviewCount} verified customer reviews)
+                      </span>
+                    </>
+                  ) : (
+                    <span className="rating-reviews-label" style={{ color: 'var(--text-secondary)' }}>
+                      Not rated yet
+                    </span>
+                  )}
                 </div>
 
                 {mechanic.specialization && (
@@ -323,10 +326,16 @@ export const MechanicDetailPage = () => {
                     Real feedback from roadside rescue incidents
                   </p>
                 </div>
-                <div className="overall-score-pill">
-                  <Star size={16} className="star-filled" />
-                  <span>{mechanic.rating.toFixed(1)} / 5.0</span>
-                </div>
+                {mechanic.rating ? (
+                  <div className="overall-score-pill">
+                    <Star size={16} className="star-filled" />
+                    <span>{mechanic.rating.toFixed(1)} / 5.0</span>
+                  </div>
+                ) : (
+                  <div className="overall-score-pill" style={{ opacity: 0.7 }}>
+                    <span>Not rated yet</span>
+                  </div>
+                )}
               </div>
 
               <div className="reviews-list">

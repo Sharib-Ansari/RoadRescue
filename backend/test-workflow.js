@@ -15,6 +15,13 @@ async function testFullWorkflow() {
   console.log('   ROADRESCUE PHASE 4 - FULL INTEGRATION TEST SUITE');
   console.log('========================================================\n');
 
+  // Safety Guard: Require dedicated test database
+  if (!process.env.MONGODB_TEST_URI) {
+    console.error('❌ MONGODB_TEST_URI environment variable is required to run integration tests.');
+    console.error('Aborting tests to prevent accidental mutation of the primary database.');
+    process.exit(1);
+  }
+
   // 1. Customer Login
   console.log('1. Testing Customer Login (demo@roadrescue.in)...');
   const custLoginRes = await fetch(`${BASE_URL}/api/auth/login`, {

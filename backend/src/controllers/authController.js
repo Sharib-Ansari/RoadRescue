@@ -131,7 +131,7 @@ export const register = async (req, res, next) => {
 
       const rawLat = latitude !== undefined ? latitude : shopLatitude;
       const rawLng = longitude !== undefined ? longitude : shopLongitude;
-      let geoCoordinates = [77.2090, 28.6139]; // Default Delhi coords if not provided
+      let geoCoordinates = null;
 
       if (location && Array.isArray(location.coordinates) && location.coordinates.length === 2) {
         geoCoordinates = [Number(location.coordinates[0]), Number(location.coordinates[1])];
@@ -139,9 +139,13 @@ export const register = async (req, res, next) => {
         const latNum = Number(rawLat);
         const lngNum = Number(rawLng);
         if (Number.isNaN(latNum) || Number.isNaN(lngNum) || latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
-          return next(new AppError('Invalid GPS coordinates for shop location', 400));
+          return next(new AppError('Invalid GPS coordinates for shop location (-90 to 90 lat, -180 to 180 lng)', 400));
         }
         geoCoordinates = [lngNum, latNum];
+      }
+
+      if (!geoCoordinates) {
+        return next(new AppError('Valid shop GPS location coordinates are required for marketplace registration', 400));
       }
 
       shopData = {

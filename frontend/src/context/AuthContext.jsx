@@ -1,35 +1,6 @@
-﻿import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { storage, STORAGE_KEYS } from '../utils/storage';
 import authApi from '../utils/api';
-
-const DEMO_CREDENTIALS = {
-  email: 'demo@roadrescue.in',
-  password: 'demo123',
-  user: {
-    id: 'usr_demo',
-    name: 'Arjun Sharma',
-    email: 'demo@roadrescue.in',
-    phone: '+91 98765 43210',
-    accountType: 'customer',
-    role: 'customer',
-    joinDate: '2024-01-01'
-  },
-  mechanicEmail: 'mechanic@roadrescue.in',
-  mechanicPassword: 'mechanic123',
-  mechanicUser: {
-    id: 'mech_demo',
-    name: 'Rajesh Kumar (Partner)',
-    email: 'mechanic@roadrescue.in',
-    phone: '+91 98765 12345',
-    accountType: 'mechanic',
-    role: 'mechanic',
-    workshopName: 'Kumar Auto Care & Recovery',
-    experience: 12,
-    serviceArea: 'Sector 14, Gurgaon / Delhi NCR',
-    services: ['Engine Repair', 'Tyre Service', 'Battery Jumpstart', 'Brake Service', 'Vehicle Towing'],
-    joinDate: '2024-01-01'
-  }
-};
 
 const AuthContext = createContext(null);
 
@@ -40,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   // Initialize and verify authentication state
   useEffect(() => {
     const initializeAuth = async () => {
-      // 1. Immediately hydrate from localStorage for instantaneous UI rendering
+      // 1. Hydrate from localStorage for fast UI rendering
       const savedUser = storage.get(STORAGE_KEYS.USER);
       if (savedUser) {
         setUser(savedUser);
@@ -63,7 +34,7 @@ export const AuthProvider = ({ children }) => {
           storage.remove(STORAGE_KEYS.USER);
           setUser(null);
         }
-        // If it's a network/offline error, preserve the local cached session
+        // If it's a network error, keep cached session so offline status is visible
       } finally {
         setIsLoading(false);
       }
@@ -73,13 +44,12 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * Log in user using real backend API with fallback
+   * Log in user using real backend API (no fake offline credentials)
    */
   const login = async (email, password) => {
     const cleanEmail = (email || '').trim().toLowerCase();
 
     try {
-      // 1. Real Backend Authentication via POST /api/auth/login
       const response = await authApi.login(cleanEmail, password);
 
       if (response?.success && response?.user) {
@@ -91,54 +61,22 @@ export const AuthProvider = ({ children }) => {
         setUser(authenticatedUser);
         return { success: true, user: authenticatedUser };
       }
-    } catch (err) {
-      // If error is an explicit 401/400/403/429 from the server, return server message
-      if (err.status) {
-        return {
-          success: false,
-          error: err.message || 'Invalid email or password.'
-        };
-      }
-
-      // 2. Offline / Demo Fallback (if backend is not running)
-      console.warn('Backend unavailable, falling back to local demo auth:', err.message);
-
-      if (cleanEmail === DEMO_CREDENTIALS.email && password === DEMO_CREDENTIALS.password) {
-        const userData = DEMO_CREDENTIALS.user;
-        storage.set(STORAGE_KEYS.USER, userData);
-        setUser(userData);
-        return { success: true, user: userData };
-      }
-
-      if (cleanEmail === DEMO_CREDENTIALS.mechanicEmail && password === DEMO_CREDENTIALS.mechanicPassword) {
-        const userData = DEMO_CREDENTIALS.mechanicUser;
-        storage.set(STORAGE_KEYS.USER, userData);
-        setUser(userData);
-        return { success: true, user: userData };
-      }
-
-      const registeredUsers = storage.get('roadrescue_registered_users') || [];
-      const foundUser = registeredUsers.find(
-        (u) => u.email.toLowerCase() === cleanEmail && u.password === password
-      );
-      if (foundUser) {
-        const { password: _, ...userWithoutPass } = foundUser;
-        storage.set(STORAGE_KEYS.USER, userWithoutPass);
-        setUser(userWithoutPass);
-        return { success: true, user: userWithoutPass };
-      }
 
       return {
         success: false,
-        error: err.message || 'Unable to connect to authentication server.'
+        error: response?.message || 'Login failed. Please check your credentials.'
+      };
+    } catch (err) {
+      // Clear, honest server/connection error - no fake offline sessions
+      return {
+        success: false,
+        error: err.message || 'Unable to connect to RoadRescue server. Please check your internet connection.'
       };
     }
-
-    return { success: false, error: 'Authentication failed. Please try again.' };
   };
 
   /**
-   * Register new customer or mechanic using real backend API
+   * Register new user using real backend API (no fake offline registration)
    */
   const register = async (userData) => {
     const role = (userData.role || userData.accountType || 'customer').toLowerCase();
@@ -172,7 +110,6 @@ export const AuthProvider = ({ children }) => {
     };
 
     try {
-      // 1. Real Backend Registration via POST /api/auth/register
       const response = await authApi.register(payload);
 
       if (response?.success && response?.user) {
@@ -184,39 +121,11 @@ export const AuthProvider = ({ children }) => {
         setUser(registeredUser);
         return { success: true, user: registeredUser };
       }
+
+      throw new Error(response?.message || 'Registration failed.');
     } catch (err) {
-      // If error is from server (e.g. 409 Duplicate Email or 400 Validation)
-      if (err.status) {
-        throw new Error(err.message || 'Registration failed.');
-      }
-
-      // 2. Offline / Local fallback if backend cannot be reached
-      console.warn('Backend unavailable, falling back to local registration:', err.message);
-
-      const newUser = {
-        id: `usr_${Date.now()}`,
-        name: payload.name || 'User',
-        email: payload.email,
-        phone: payload.phone,
-        accountType: role,
-        role: role,
-        workshopName: payload.workshopName || '',
-        servicesOffered: payload.servicesOffered || [],
-        experienceYears: payload.experienceYears || '',
-        serviceArea: payload.serviceArea || '',
-        joinDate: new Date().toISOString()
-      };
-
-      const registeredUsers = storage.get('roadrescue_registered_users') || [];
-      registeredUsers.push({ ...newUser, password: userData.password });
-      storage.set('roadrescue_registered_users', registeredUsers);
-
-      storage.set(STORAGE_KEYS.USER, newUser);
-      setUser(newUser);
-      return { success: true, user: newUser };
+      throw new Error(err.message || 'Unable to connect to server. Please check your connection and try again.');
     }
-
-    throw new Error('Registration failed. Please try again.');
   };
 
   /**
@@ -254,7 +163,8 @@ export const AuthProvider = ({ children }) => {
         return { success: true, user: syncedUser };
       }
     } catch (err) {
-      console.warn('Backend profile update failed, applying locally:', err.message);
+      console.warn('Backend profile update failed:', err.message);
+      throw err;
     }
 
     const updatedUser = { ...user, ...updates };
@@ -271,8 +181,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
-        updateUser,
-        DEMO_CREDENTIALS
+        updateUser
       }}
     >
       {children}

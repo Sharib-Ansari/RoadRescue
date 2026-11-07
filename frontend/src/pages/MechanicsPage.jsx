@@ -87,8 +87,8 @@ export const MechanicsPage = () => {
             id: m.id || m._id,
             name: m.name,
             workshopName: m.workshopName || 'Certified Workshop Partner',
-            rating: 4.9,
-            reviewCount: 28,
+            rating: m.rating || null,
+            reviewCount: m.reviewCount || 0,
             distance: m.distanceKm,
             distanceKm: m.distanceKm,
             experience: m.experience || 5,
@@ -129,8 +129,8 @@ export const MechanicsPage = () => {
             id: m.id || m._id,
             name: m.name,
             workshopName: m.workshopName || m.mechanicProfile?.workshopName || 'Certified Workshop Partner',
-            rating: 4.9,
-            reviewCount: 24,
+            rating: m.rating || m.mechanicProfile?.rating || null,
+            reviewCount: m.reviewCount || m.mechanicProfile?.reviewCount || 0,
             distance: m.distanceKm !== undefined ? m.distanceKm : null,
             distanceKm: m.distanceKm !== undefined ? m.distanceKm : null,
             experience: m.experience || m.mechanicProfile?.experience || 5,
@@ -284,7 +284,7 @@ export const MechanicsPage = () => {
       })
       .sort((a, b) => {
         if (sortBy === 'rating') {
-          return b.rating - a.rating;
+          return (b.rating || 0) - (a.rating || 0);
         }
         if (sortBy === 'distance') {
           if (a.distanceKm === null && b.distanceKm === null) return 0;
@@ -627,8 +627,14 @@ export const MechanicsPage = () => {
                       <div className="card-ratings-distance">
                         <div className="rating-pill">
                           <Star size={14} className="star-icon" />
-                          <span className="rating-number">{mechanic.rating.toFixed(1)}</span>
-                          <span className="reviews-count">({mechanic.reviewCount} reviews)</span>
+                          {mechanic.rating ? (
+                            <>
+                              <span className="rating-number">{mechanic.rating.toFixed(1)}</span>
+                              <span className="reviews-count">({mechanic.reviewCount || 0} reviews)</span>
+                            </>
+                          ) : (
+                            <span className="reviews-count">Not rated yet</span>
+                          )}
                         </div>
 
                         {mechanic.distanceKm !== null && mechanic.distanceKm !== undefined && (

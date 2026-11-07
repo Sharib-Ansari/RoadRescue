@@ -37,6 +37,13 @@ async function main() {
   console.log('   ROADRESCUE BACKEND PHASE 2 - AUTH TEST SUITE');
   console.log('========================================================\n');
 
+  // Safety Guard: Require dedicated test database
+  if (!process.env.MONGODB_TEST_URI) {
+    console.error('❌ MONGODB_TEST_URI environment variable is required to run test suite.');
+    console.error('Aborting tests to prevent accidental mutation of the primary database.');
+    process.exit(1);
+  }
+
   let customerCookie = null;
   let mechanicCookie = null;
 
