@@ -22,10 +22,33 @@ app.set('trust proxy', 1);
 // Security headers
 app.use(helmet());
 
-// CORS configuration (exact origin with credentials)
+/**
+ * CORS — allow credentialed requests from the configured frontend origins.
+ *
+ * FRONTEND_URL can be a single origin or a comma-separated list, e.g.:
+ *   FRONTEND_URL=https://road-rescue-omega.vercel.app
+ * or:
+ *   FRONTEND_URL=https://road-rescue-omega.vercel.app,http://localhost:5173
+ *
+ * Each origin is trimmed and trailing slashes are removed before comparison.
+ */
+const rawAllowedOrigins = process.env.FRONTEND_URL || 'http://localhost:5173';
+const allowedOrigins = rawAllowedOrigins
+  .split(',')
+  .map((o) => o.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (requestOrigin, callback) => {
+      // Allow server-to-server requests (no Origin header) and known origins
+      if (!requestOrigin) return callback(null, true);
+      const normalised = requestOrigin.trim().replace(/\/$/, '');
+      if (allowedOrigins.includes(normalised)) {
+        return callback(null, true);
+      }
+      callback(new Error(`CORS: origin '${requestOrigin}' not allowed`));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']

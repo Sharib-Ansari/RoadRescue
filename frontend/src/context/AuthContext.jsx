@@ -11,15 +11,18 @@ export const AuthProvider = ({ children }) => {
   // Initialize and verify authentication state
   useEffect(() => {
     const initializeAuth = async () => {
-      // 1. Hydrate from localStorage for fast UI rendering
+      // 1. Hydrate from localStorage immediately for fast UI rendering
       const savedUser = storage.get(STORAGE_KEYS.USER);
       if (savedUser) {
         setUser(savedUser);
       }
 
-      // 2. Verify and refresh session with real backend via HttpOnly cookie
+      // 2. Verify session with backend — use a shorter timeout here (20s) so the
+      //    login page renders quickly even when the backend is cold-sleeping.
+      //    If the backend is unreachable, we keep the cached user (or null) and
+      //    let the user log in manually.
       try {
-        const response = await authApi.getMe();
+        const response = await authApi.getMe({ timeoutMs: 20_000 });
         if (response?.success && response?.user) {
           const verifiedUser = {
             ...response.user,
@@ -29,12 +32,13 @@ export const AuthProvider = ({ children }) => {
           setUser(verifiedUser);
         }
       } catch (err) {
-        // If server returns 401 Unauthorized, the session has expired or cookie is cleared
+        // 401 = session expired/no cookie → clear cached user
         if (err.status === 401) {
           storage.remove(STORAGE_KEYS.USER);
           setUser(null);
         }
-        // If it's a network error, keep cached session so offline status is visible
+        // Timeout or network error (backend cold) → keep cached state, don't block UI
+        // The user can still log in normally; subsequent requests will wake the server.
       } finally {
         setIsLoading(false);
       }

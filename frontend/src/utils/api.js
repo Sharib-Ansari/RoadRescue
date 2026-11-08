@@ -5,29 +5,43 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
+// Default request timeout: 90 seconds (accommodates Render free-tier cold starts of ~50s)
+const DEFAULT_TIMEOUT_MS = 90_000;
+
 /**
- * Core fetch wrapper with JSON serialization, cookie credentials, and structured error responses.
+ * Core fetch wrapper with JSON serialization, cookie credentials, timeout, and error handling.
  */
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {})
   };
 
+  // Build fetch config (strip our custom fields before passing to fetch)
+  const { timeoutMs: _t, body, ...restOptions } = options;
   const config = {
-    ...options,
+    ...restOptions,
     headers,
     credentials: 'include' // Crucial for HttpOnly JWT cookies across all requests
   };
 
-  if (options.body && typeof options.body === 'object') {
-    config.body = JSON.stringify(options.body);
+  if (body && typeof body === 'object') {
+    config.body = JSON.stringify(body);
+  } else if (body) {
+    config.body = body;
   }
+
+  // AbortController for timeout
+  const controller = new AbortController();
+  config.signal = controller.signal;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(url, config);
+    clearTimeout(timeoutId);
 
     // Try parsing JSON body
     let data;
@@ -48,13 +62,31 @@ async function request(endpoint, options = {}) {
 
     return data;
   } catch (err) {
-    // If backend is completely offline or network fails
-    if (err.name === 'TypeError' && err.message.includes('fetch')) {
-      const netError = new Error('Unable to connect to RoadRescue server. Please ensure the backend is running on port 5000.');
+    clearTimeout(timeoutId);
+
+    // AbortController timeout fired
+    if (err.name === 'AbortError') {
+      const timeoutError = new Error(
+        'The RoadRescue server is taking longer than expected to respond. ' +
+        'The service may be starting up — please wait a moment and try again.'
+      );
+      timeoutError.status = 408;
+      timeoutError.isTimeoutError = true;
+      throw timeoutError;
+    }
+
+    // Network failure (CORS block, offline, DNS failure, etc.)
+    if (err.name === 'TypeError' && err.message.toLowerCase().includes('fetch')) {
+      const netError = new Error(
+        'Unable to reach the RoadRescue service. ' +
+        'The server may be starting up or your connection may be temporarily unavailable. ' +
+        'Please try again in a moment.'
+      );
       netError.status = 503;
       netError.isNetworkError = true;
       throw netError;
     }
+
     throw err;
   }
 }

@@ -32,6 +32,7 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [slowConnection, setSlowConnection] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -73,17 +74,17 @@ export default function LoginPage() {
 
     setIsLoading(true);
     setAuthError('');
+    setSlowConnection(false);
+
+    // Show a "server waking up" hint after 8 seconds if still loading
+    const slowTimer = setTimeout(() => setSlowConnection(true), 8000);
 
     try {
-      // Simulate 800ms authentication delay for realistic feedback
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
       let targetRoute = '/dashboard';
       if (login) {
         const res = await login(formData.email.trim(), formData.password);
         if (res && res.success === false) {
           setAuthError(res.error || 'Invalid email or password.');
-          setIsLoading(false);
           return;
         }
         const loggedUser = res?.user || JSON.parse(localStorage.getItem('roadrescue_user') || '{}');
@@ -99,6 +100,8 @@ export default function LoginPage() {
     } catch (err) {
       setAuthError(err.message || 'Failed to sign in. Please check your credentials.');
     } finally {
+      clearTimeout(slowTimer);
+      setSlowConnection(false);
       setIsLoading(false);
     }
   };
@@ -301,7 +304,7 @@ export default function LoginPage() {
               {isLoading ? (
                 <>
                   <span className="auth-spinner" />
-                  <span>Signing in...</span>
+                  <span>{slowConnection ? 'Server starting up...' : 'Signing in...'}</span>
                 </>
               ) : (
                 <>
@@ -310,6 +313,18 @@ export default function LoginPage() {
                 </>
               )}
             </button>
+            {/* Cold-start awareness hint */}
+            {isLoading && slowConnection && (
+              <p style={{
+                fontSize: '0.78rem',
+                color: 'var(--text-secondary, #9ca3af)',
+                textAlign: 'center',
+                marginTop: '0.5rem',
+                lineHeight: '1.5'
+              }}>
+                The server is waking up from sleep — this can take up to 60 seconds on first request.
+              </p>
+            )}
           </form>
 
           {/* Divider */}
